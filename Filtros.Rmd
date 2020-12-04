@@ -1,0 +1,144 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach")
+libraries(librerias)
+mis.codigos.gse <- c('GSE42847')
+
+###'GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184'||||||'GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756') 
+
+my_getGEO <- function (codigo_gse){
+  getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data
+  return(my.gse.data)}
+mis_gse_data <- map(mis.codigos.gse, my_getGEO) %>% unlist
+mis_gse_data %>% names %>% str_extract('GSE\\d+-?G?P?L?\\d+') %>% set_names(mis_gse_data,.) -> gse_data
+
+pData(gse_data$GSE26981) %<>% filter(str_detect(title,'10|15'))
+pData(gse_data$GSE42491) %<>% filter(str_detect(source_name_ch1,'24h|12h') & str_detect(source_name_ch2,'24h|12h'))
+pData(gse_data$GSE3857)  %<>% filter(str_detect(source_name_ch1,'control|exposed') & str_detect(source_name_ch2,'control|exposed'))
+pData(gse_data$GSE36072) %<>% filter(str_detect(title,'Placebo'))
+pData(gse_data$GSE122142)%<>% filter(str_detect(title,'Before') | str_detect(title,'36|43|57'))%>%
+                              filter(str_detect(title,'low'))
+pData(gse_data$`GSE32119-GPL14575`) %<>% filter(str_detect(title,'(18|16)hpi'))
+pData(gse_data$`GSE32119-GPL6457`)  %<>% filter(str_detect(title,'(18|16)hpi'))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+################ filtrados el primer dia ####################
+pData(gse_data$GSE1012) %<>% filter(str_detect(source_name_ch1,'non-infected|Piscirickettsia') & str_detect(source_name_ch2,'non-infected| Piscirickettsia')) # solo 3 gsm no se que filtrar
+
+pData(gse_data$GSE1031) %<>% filter(str_detect(source_name_ch1,'Non-infected|Piscirickettsia')& str_detect(source_name_ch2,'Non-infected|Piscirickettsia')) # solo 4 gsms sin grupos, valdra la pena aplicar algun filtro?
+pData(gse_data$GSE6105) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE6350) %<>% filter(str_detect(title,'control|infection'))
+
+pData(gse_data$`GSE6924-GPL2899`) %<>% filter(str_detect(title,'day5|day9'))
+pData(gse_data$`GSE6924-GPL3976`) %<>% filter(str_detect(title,'controls') | str_detect(title, 'day1', negate= T))
+
+pData(gse_data$GSE9595) %<>% filter(str_detect(title,'AGD'))  ## No esta facil de filtrar, ya que todos los grupos involucran lesion.
+pData(gse_data$GSE10272) %<>% filter(str_detect(title,'72h')) #Todos son infectados
+pData(gse_data$GSE13994) %<>% filter(str_detect(title,'24hpi'))
+pData(gse_data$GSE15328) %<>% filter(str_detect(title,'120hpi|6dpi|control|PBS')) ### Seleccion de los estadios mas avanzados
+```
+
+
+```{r message=FALSE, warning=FALSE}
+###
+pData(gse_data$GSE19049) %<>% filter(str_detect(title,'control|infection')) ### 4 replicas control vs 4 replicas infectado
+
+pData(gse_data$GSE19630) %<>% filter(str_detect(title,'16j|7j')) #seleccione solamente los ultimos 2 estadios temporales. controles como infectados (j= dias)
+
+pData(gse_data$GSE20310) %<>% filter(str_detect(title,'Infected|Not.infected')) # Not infected vs Infected, en diferentes estadios del desarrollo
+
+pData(gse_data$GSE18219) %<>% filter(str_detect(source_name_ch1,'control|infected')& str_detect(source_name_ch1,'EXPOSED', negate = T)) #Presenta el grupo "expuestos" pero no parece pertinente a la seleccion. El segundo canal contiene otro tipo de informacion distinta
+
+pData(gse_data$GSE19646) %<>% filter(str_detect(source_name_ch1,'CONTROL|INFECTED') & str_detect(source_name_ch1,'EXPOSED', negate = T)) #negar los expuestos al patogeno
+
+pData(gse_data$GSE26984) %<>% filter(str_detect(source_name_ch1,'infected')) ##Estudio solo de salmaones infectados con L.salmonis
+
+pData(gse_data$`GSE28843-GPL10679`) %<>% filter(str_detect(title,'Heart.*4.wpi',negate = T) & str_detect(title, '4.wpi|10.wpi')) # Solo salmones infectados, distintos organos, salida doble, de este estudio seleccione solo los ultimos dias de infeccion para el corazon
+
+pData(gse_data$`GSE28843-GPL10705`) %<>% filter(str_detect(title,'8 wpi')) # 8wpi para el resto de los organos menos el corazon
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pData(gse_data$GSE30426) %<>% filter(str_detect(source_name_ch1,'3 p.i|not infected')) # se seleccionan los infectados, en caso de que interesen los no infectados agregar '\not infected'
+
+pData(gse_data$GSE28357) %<>% filter(str_detect(title,'0h|63d')) ## t= 0 y tiempo final 
+
+pData(gse_data$GSE34745) %<>% filter(str_detect(source_name_ch1,'Infected, Day 4|Control, Day 4')) # En este caso no sirve poner que se cumplan las condiciones en los 2 caneles, puesto que el canal 2 contiene el otro grupo de tratamiento.
+pData(gse_data$GSE35184) %<>% filter(str_detect(source_name_ch1,'control|25')) # Control y ultimo dia seleccionado. 
+
+
+#### segunda parte###
+
+pData(gse_data$GSE35448) %<>% filter(str_detect(title,'Susceptible')) # De no ser lo requerido reemplazar por filter(str_detect(title,'Control|infected')), esto seleccionara ambas lineas geneticas del estudio
+
+pData(gse_data$GSE35804) %<>% filter(str_detect(title,'Naive'))  ### tambien puede ser util filter(str_detect(title,'control|infected'))
+
+pData(gse_data$GSE35633) %<>% filter(str_detect(source_name_ch1,'late infected|control')) #no es posible eliminar la variable "Dieta", 66VO = Vegetable oil ,  FO = fish oil
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pData(gse_data$GSE36332) %<>% filter(str_detect(title,'Unvaccinated')) %>% filter(str_detect(title, '0h|72h')) # 6 tratamientos, reducidos a sin vacunar 0h vs 72h infectados
+
+
+pData(gse_data$GSE38763) %<>% filter(str_detect(title,'No estrogen')) #peces infectados sin tratamiento hormonal
+
+pData(gse_data$GSE40733) %<>% filter(str_detect(title,'12h')) # EN el canal 2 estan los infectados y en el canal 1 los controles con distintos tiempos, esto deberia dejar controles 12h e infectados 12h.
+
+pData(gse_data$GSE26651) %<>% filter(str_detect(title,'day2'))  # Control de procedimiento vs infectado al segundo dia. 
+
+
+pData(gse_data$GSE39274) %<>% filter(str_detect(title,'mutant', negate =T)) #Esto deberia eliminar la variable de "genotipo"
+
+pData(gse_data$GSE42263) %<>% filter(str_detect(title,'non-infected') | str_detect(title, 'infected')) # elimina genotipo resistente
+
+pData(gse_data$'GSE42847-GPL14875') %<>% filter(str_detect(title,'Non-injected|5 DPI')) #doble salida, 2 tratamientos; inyectados y no inyecytados. No hay razon por la cual filtrar
+pData(gse_data$'GSE42847-GPL15180') %<>% filter(str_detect(title,'126HPI|102HPI'))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pData(gse_data$'GSE44352-GPL14875') %<>% filter(str_detect(title,'zebrafish'))#Doble salida, seleccionar todos, solo tiene 3 GSM, seria; control vs 2 tipos de infeccion 
+pData(gse_data$'GSE44352-GPL15180') %<>% filter(str_detect(title,'zebrafish')) # Lo mismo que el anterior GPL
+
+
+pData(gse_data$GSE47057) %<>% filter(str_detect(title,'infected')) #el estudio esta disenado de manera que se comparan control vs infectados en cada GSM, canal 1 infectados y canal 2 no infectados
+
+pData(gse_data$GSE51603) %<>% filter(str_detect(title,'control|infection'))
+
+
+pData(gse_data$GSE51839) %<>% filter(str_detect(source_name_ch1,'21dpi')) # diferentes tiempos, seleccionar solo el ultimo
+
+
+pData(gse_data$GSE56487) %<>% filter(str_detect(source_name_ch1,'-injected') & str_detect(source_name_ch1,'vaccine', negate = T)) %>% filter(str_detect(source_name_ch1, '72hpi')) #Deberia seleccionar control de procedimiento (plasmido vacio), infectados y eliminar a los vacunados.
+
+pData(gse_data$GSE43255) %<>% filter(str_detect(title, 'High')) ### Solo son individuos infectados, en este caso intentare seleccionar los mas sensibles a la infeccion
+
+pData(gse_data$GSE45163) %<>% filter(str_detect(title,'Control|12h after')) ## control y control de procedimiento + infectados 12hrs
+ 
+pData(gse_data$GSE58823) %<>% filter(str_detect(title,'Control|+VHSV')) # este estudio ya viene disenado de la forma control vs infeccion. se podria dejar solo aleta o solo organos internos agregando "| str_detect(title, 'Internal Organs', negate = T)
+
+
+pData(gse_data$GSE87920) %<>% filter(str_detect(source_name_ch1,'fed control')) %>% filter(str_detect(source_name_ch1,'20 days post challenge.')) #en este caso no se como lidiar con la informaicon que se pierde en el canal 2
+
+
+pData(gse_data$GSE101695) %<>% filter(str_detect(characteristics_ch1.1,'control|infected')) # este estudio es control vs infetado en distinto organosm quizas se podrian extraer datos pertinentes a cada organo filter(str_detect(source_name_ch1,'nombre del organo'))
+
+pData(gse_data$GSE140756) %<>% filter(str_detect(source_name_ch1,'control|ATT')) #este estudo es control piojo de mar vs chalimus. se pretende seleccionar el caso mas probable de infeccion por chalimus
+
+
+
+####Formato distino de descarga E-MTAB-3401,E-TABM-1060,E-MTAB-4275,E-MEXP-1286,E-MTAB-685,
+```

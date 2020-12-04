@@ -1,0 +1,589 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r message=FALSE, warning=FALSE}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach")
+libraries(librerias)
+mis.codigos.gse <- c('GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756')
+
+###'GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184'||||||'GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756') 
+
+my_getGEO <- function (codigo_gse){
+  getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data
+  return(my.gse.data)}
+mis_gse_data <- map(mis.codigos.gse, my_getGEO) %>% unlist
+
+mis_gse_data %<>% set_names(mis.codigos.gse) 
+#Descarga y lectura de los soft
+A<-getGEOSuppFiles(mis.codigos.gse[1], makeDirectory = T, baseDir = getwd()) # Creara un directorio en nuestro directorio de trabajo.
+
+A %>% rownames %>% str_replace('GSE\\d+_RAW.*','')-> my.gse.path
+A <- getGEOfile(mis.codigos.gse[1], destdir = my.gse.path ) #descarga de la metadata
+my.soft <- getGEO(filename = A)
+#Obtener los nombres de las columnas con las caracteristicas de los canales
+map(mis_gse_data, pData) %>% map(names) %>% map(~str_match(.,regex('charac.*ch\\d+', ignore_case = T))) %>% map(. %>% na.omit %>% as.character) -> A
+map(mis_gse_data,pData)-> pData.list
+# map(pData.list$ , mis.codigos.gse) ## seguir intentando esto
+encontrar_infected_o_control <- function(a.str){ if(str_detect(a.str, regex('(n|N)one|(c|C)ontrol', ignore_case = T))) {return('Control')} else return('Infected') }
+```
+
+
+```{r message=FALSE, warning=FALSE}
+##########################################Filtrado de GSMS ############################################
+#GSMs <-read.table(file =, ) %>% grep('!Sample_geo_accession')
+#for (i in mis.codigos.gse){) 
+#  $i %>% pData() %>% select(matches('title|source_name')
+# Reset chunk! correr esta linea cuando no funciona el filtrado 
+mis_gse_data %>% names %>% str_extract('GSE\\d+-?G?P?L?\\d+') %>% set_names(mis_gse_data,.) -> gse_data
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pData(gse_data$GSE26981) %<>% filter(str_detect(title,'10|15'))
+pData(gse_data$GSE42491) %<>% filter(str_detect(source_name_ch1,'24h|12h') & str_detect(source_name_ch2,'24h|12h'))
+pData(gse_data$GSE3857)  %<>% filter(str_detect(source_name_ch1,'control|exposed') & str_detect(source_name_ch2,'control|exposed'))
+pData(gse_data$GSE36072) %<>% filter(str_detect(title,'Placebo'))
+pData(gse_data$GSE122142)%<>% filter(str_detect(title,'Before') | str_detect(title,'36|43|57'))%>%
+                              filter(str_detect(title,'low'))
+pData(gse_data$`GSE32119-GPL14575`) %<>% filter(str_detect(title,'(18|16)hpi'))
+pData(gse_data$`GSE32119-GPL6457`)  %<>% filter(str_detect(title,'(18|16)hpi'))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+################ filtrados el primer dia ####################
+pData(gse_data$GSE1012) %<>% filter(str_detect(.'')) # solo 3 gsm no se que filtrar
+pData(gse_data$GSE1031) %<>% filter(str_detect(.'')) # solo 4 gsms sin grupos, valdra la pena aplicar algun filtro?
+pData(gse_data$GSE6105) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE6350) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE6924) %<>% filter(str_detect(title,'control|infection')) ##### DA NULL
+pData(gse_data$GSE9595) %<>% filter(str_detect(title,'lesion', negate = T)) %>%  ## No esta facil de filtrar, ya que todos los grupos involucran lesion.
+pData(gse_data$GSE10272) %<>% filter(str_detect(title,'72h')) #Todos son infectados
+pData(gse_data$GSE13994) %<>% filter(str_detect(title,'24hpi'))
+pData(gse_data$GSE15328) %<>% filter(str_detect(title,'120hpi|6dpi|control|PBS')) ### Seleccion de los estadios mas avanzados
+```
+
+
+```{r message=FALSE, warning=FALSE}
+###
+pData(gse_data$GSE19049) %<>% filter(str_detect(title,'control|infection')) ### 4 replicas control vs 4 replicas infectado
+
+pData(gse_data$GSE19630) %<>% filter(str_detect(title,'16j|7j')) #seleccione solamente los ultimos 2 estadios temporales. controles como infectados (j= dias)
+
+pData(gse_data$GSE20310) %<>% filter(str_detect(title,'Infected|Not.infected')) # Not infected vs Infected, en diferentes estadios del desarrollo
+
+pData(gse_data$GSE18219) %<>% filter(str_detect(source_name_ch1,'control|infected')& str_detect(source_name_ch1,'EXPOSED', negate = T)) #Presenta el grupo "expuestos" pero no parece pertinente a la seleccion. El segundo canal contiene otro tipo de informacion distinta
+
+pData(gse_data$GSE19646) %<>% filter(str_detect(source_name_ch1,'CONTROL|INFECTED') & str_detect(source_name_ch1,'EXPOSED', negate = T)) #negar los expuestos al patogeno
+
+pData(gse_data$GSE26984) %<>% filter(str_detect(source_name_ch1,'infected')) ##Estudio solo de salmaones infectados con L.salmonis
+
+pData(gse_data$`GSE28843-GPL10679`) %<>% filter(str_detect(title,'10 wpi')) # Solo salmones infectados, distintos organos, salida doble, de este estudio seleccione solo los ultimos dias de infeccion para el corazon
+
+pData(gse_data$`GSE28843-GPL10705`) %<>% filter(str_detect(title,'8 wpi') & str_detect(title, 'Heart', negate = T)) # 8wpi para el resto de los organos menos el corazon
+
+pData(gse_data$GSE30426) %<>% filter(str_detect(source_name_ch1,'3 p.i|not infected')) # se seleccionan los infectados, en caso de que interesen los no infectados agregar '\not infected'
+
+pData(gse_data$GSE28357) %<>% filter(str_detect(title,'0h|63d')) ## t= 0 y tiempo final 
+
+pData(gse_data$GSE34745) %<>% filter(str_detect(source_name_ch1,'Infected, Day 4|Control, Day 4')) # En este caso no sirve poner que se cumplan las condiciones en los 2 caneles, puesto que el canal 2 contiene el otro grupo de tratamiento.
+pData(gse_data$GSE35184) %<>% filter(str_detect(source_name_ch1,'control|25')) # Control y ultimo dia seleccionado. 
+
+
+#### segunda parte###
+
+pData(gse_data$GSE35448) %<>% filter(str_detect(title,'Susceptible')) # De no ser lo requerido reemplazar por filter(str_detect(title,'Control|infected')), esto seleccionara ambas lineas geneticas del estudio
+
+pData(gse_data$GSE35804) %<>% filter(str_detect(title,'Naive'))  ### tambien puede ser util filter(str_detect(title,'control|infected'))
+
+pData(gse_data$GSE35633) %<>% filter(str_detect(source_name_ch1,'late infected|control')) #no es posible eliminar la variable "Dieta" 
+
+pData(gse_data$GSE36332) %<>% filter(str_detect(title,'Unvaccinated')) %>% filter(str_detect(title, '0h|72h')) # 6 tratamientos, reducidos a sin vacunar 0h vs 72h infectados
+
+
+pData(gse_data$GSE38763) %<>% filter(str_detect(title,'No estrogen')) #peces infectados sin tratamiento hormonal
+
+pData(gse_data$GSE40733) %<>% filter(str_detect(title,'12h')) # EN el canal 2 estan los infectados y en el canal 1 los controles con distintos tiempos, esto deberia dejar controles 12h e infectados 12h.
+
+pData(gse_data$GSE26651) %<>% filter(str_detect(title,'day2'))  # Control de procedimiento vs infectado al segundo dia. 
+
+  mis_gse_data$GSE56487_series_matrix.txt.gz%>% pData() 
+
+pData(gse_data$GSE39274) %<>% filter(str_detect(title,'mutant', negate =T)) #Esto deberia eliminar la variable de "genotipo"
+
+pData(gse_data$GSE42263) %<>% filter(str_detect(title,'non-infected|') | str_detect(title, 'infected')) # elimina genotipo resistente
+
+pData(gse_data$'GSE42847-GPL14875') %<>% filter(str_detect(title,'Non-injected|5 DPI')) #doble salida, 2 tratamientos; inyectados y no inyecytados. No hay razon por la cual filtrar
+pData(gse_data$'GSE42847-GPL15180') %<>% filter(str_detect(title,'126HPI'))
+
+pData(gse_data$'GSE44352-GPL14875') %<>% filter(str_detect(title,'zebrafish'))#Doble salida, seleccionar todos, solo tiene 3 GSM, seria; control vs 2 tipos de infeccion 
+pData(gse_data$'GSE44352-GPL15180') %<>% filter(str_detect(title,'zebrafish')) # Lo mismo que el anterior GPL
+
+
+pData(gse_data$GSE47057) %<>% filter(str_detect(title,'infected')) #el estudio esta disenado de manera que se comparan control vs infectados en cada GSM, canal 1 infectados y canal 2 no infectados
+
+pData(gse_data$GSE51603) %<>% filter(str_detect(title,'control|infection'))
+
+
+pData(gse_data$GSE51839) %<>% filter(str_detect(source_name_ch1,'21dpi')) # diferentes tiempos, seleccionar solo el ultimo
+
+
+pData(gse_data$GSE56487) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE43255) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE45163) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE58823) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE87920) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE101695) %<>% filter(str_detect(title,'control|infection'))
+pData(gse_data$GSE140756) %<>% filter(str_detect(title,'control|infection'))
+
+
+
+mis_gse_data$GSE19630_series_matrix.txt.gz %>% pData() 
+
+
+#DANIELA
+#mis_gse_data$GSE87920_series_matrix.txt.gz    %>% pData() %>% select(matches('title|source_name'))
+#mis_gse_data$GSE56487_series_matrix.txt.gz    %>% pData() %>% select(matches('title|source_name'))
+
+
+'GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184','GSE35448','GSE35633','GSE35804','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756'
+
+####Formato distino de descarga E-MTAB-3401,E-TABM-1060,E-MTAB-4275,E-MEXP-1286,E-MTAB-685,
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+##############################################ad######################################
+pData.list$GSE26981_series_matrix.txt.gz[['characteristics_ch1']] %>% unique %>% encontrar_infected_o_control
+pData.list$GSE26981_series_matrix.txt.gz[['characteristics_ch2']] %>% unique %>% encontrar_infected_o_control
+pData.list$GSE42491_series_matrix.txt.gz[['characteristics_ch2']] %>% unique %>% encontrar_infected_o_control
+pData.list$GSE42491_series_matrix.txt.gz[['characteristics_ch1']] %>% unique %>% encontrar_infected_o_control 
+  
+
+map(mis_gse_data, .  %>% pData %>% select(matches('(l|L)abel.ch'))) -> lista.label.dyes
+
+map(lista.label.dyes, . %>% mutate(label_ch1 = ifelse(str_detect(label_ch1, 'Cy3'),'control','infected')) %>% mutate(label_ch2 = ifelse(str_detect(label_ch2,'Cy3'), 'control', 'infected')))
+lista.label.dyes
+
+```
+
+```{r message=FALSE, warning=FALSE}
+library(stringr)
+
+my.folder.raw      <- list.files(path=getwd(), recursive = F, pattern = "^GSE26981.*RAW$", full.names = T)
+
+all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
+all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*gpr$', negate = F)]
+all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*JV.*', negate = T)]
+study              <- unlist(str_extract_all(my.folder.raw, 'GS[aA-zZ]+\\d+.*'))
+all.raw.files
+```
+
+GSM                    Day         Fisha
+GSM664623.gpr"          1           1
+GSM664624.gpr"          1           2
+GSM664625.gpr"          1           3
+GSM664626.gpr"          1           4
+GSM664627.gpr"          3           1
+GSM664628.gpr"          3           2
+GSM664629.gpr"          3           3
+GSM664630.gpr"          3           4
+GSM664631.gpr"          5           1
+GSM664632.gpr"          5           2
+GSM664633.gpr"          5           3
+GSM664634.gpr"          5           4
+GSM664635.gpr"         10           1
+GSM664636.gpr"         10           2
+GSM664637.gpr"         10           3
+GSM664638.gpr"         10           4
+GSM664639.gpr"         15           1
+GSM664640.gpr"         15           2
+GSM664641.gpr"         15           3
+GSM664642.gpr"         15           4
+
+TARGET:
+
+my.rownames               Cy3              Cy5            FilePath
+___________________________________________________________________________
+                      non_infected       infected        ..._JV.gpr
+
+```{r}
+
+my.rownames <- rownames(channels.labels)
+
+
+Cy5 <- rep('infected',length(my.rownames))
+
+Cy3 <- rep('control',length(my.rownames))
+
+data.frame(Cy3,Cy5)  %>% trqwe::set_rownames(my.rownames) -> my.target_Cy3_Cy5
+library(limma)
+modelMatrix(my.target_Cy3_Cy5, ref = 'control') -> design
+```
+
+**Leer los .gpr**
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+all.raw.data.files <- list()$data.frame
+for(j in 1:length(all.raw.files)){
+                                  line <- 0L
+                                 input <- "start"
+                                while( !str_detect(input, '.*(B|b)lock.*')) {
+                                line <- line + 1L
+                                input <-  read_lines(file = all.raw.files[j], skip = line - 1L, n_max = 1L )
+                                }
+                                  all.raw.data.files[[study]]$data[[unlist(str_extract_all(all.raw.files[j], 'GSM\\d+.*'))]] <- 
+                                  as.data.frame(read_delim(all.raw.files[j], delim= "\t",  skip = line-1))
+}
+#str(all.raw.data.files) #para chequear
+all.raw.data.files[[1]]$data[[1]] %>% names() 
+```
+
+#dependerar de los nombres de columnas que se usaran eliminar espacios F633 o F543 o B633
+#str_detect("(F635.*Median$)|(F635.*Mean$)|(F635.*SD$)|(F635.*CV$)|(B635.*Median$)|(B635.*Mean$)|(B635.*SD$)|(B635.*CV$)|(F532.*Median$)|(F532.*Mean$)|(F532.*SD$)|(F532.*CV$)|(B532.*Median$)|(B532.*Mean$)|(B532.*SD$)|(B532.*CV$)|(%.*)")
+```{r message=FALSE, warning=FALSE}
+for(i in 1:length(names(all.raw.data.files[[study]]$data))){
+  
+                                            a.data.study       <- all.raw.data.files[[study]]$data[[i]]
+                                            my.cols.bool       <- a.data.study %>% names() %>% str_detect("(F6\\d\\d.*Mean$)|(F5\\d\\d.*Mean$)|(B6\\d\\d.*Median$)|(B5\\d\\d.*Median$)") 
+                                            my.cols.init.names <- names(a.data.study)[my.cols.bool]
+                                            my.cols.init.names%>% str_replace_all('.(?=(Median|Mean))','.')  -> my.cols.names.ok
+                                            
+                                            
+                                            names(a.data.study)[my.cols.bool] <- my.cols.names.ok
+                                            all.raw.data.files[[study]]$data %>% names() %>% .[i] -> FileName
+                                            my.file.path <- all.raw.files[str_detect(all.raw.files, FileName)]
+                                            my.file.path %>% str_extract('.*(?=(.gpr))') %>% paste0('_JV.gpr')  -> new.FileName.path
+                                            write_delim(x=a.data.study, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+}
+my.cols.names.ok
+```
+
+
+```{r}
+list.files(path=my.folder.raw, recursive = F, full.names = T) %>% str_extract_all('.*_JV.gpr') %>% unlist() -> FileName
+FileName %>% str_extract('GSM\\d+') -> sample.names
+
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
+merge(my.target_Cy3_Cy5, sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+```
+
+Ver los nombrs de las columnas del rojo y verde
+```{r}
+my.cols.names.ok
+
+```
+Buscar la columna con los IDs:
+```{r}
+a.data.study
+```
+
+
+Muestras día 1
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*1,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*1,")%>% which() -> a.subsetd1
+a.subsetd1
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG1          <- read.maimages(target.ok[a.subsetd1,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG1.bc2      <-backgroundCorrect(RG1,method="normexp")
+
+RG1.bc2.norm <- normalizeWithinArrays(RG1.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG1.bc2.norm,design[a.subsetd1,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp1            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp1            <- data.frame(ID = diffexp1$ID, log2FC = diffexp1$logFC, adj.P.Val = diffexp1$adj.P.Val,  CI.L = diffexp1$CI.L, CI.R = diffexp1$CI.R)
+```
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp1,
+    lab = diffexp1$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 1',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+
+Muestras día 3
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*3,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*3,")%>% which() -> a.subsetd3
+a.subsetd3
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd3,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd3,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 3',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+Muestras día 5
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*5,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*5,")%>% which() -> a.subsetd5
+a.subsetd5
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd5,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd5,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 5',
+    ylim = c(0, 6)) 
+
+
+```
+
+Muestras día 10
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*10,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*10,")%>% which() -> a.subsetd10
+a.subsetd10
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd10,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd10,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 10',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+Muestras día 15
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*15,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*15,")%>% which() -> a.subsetd15
+a.subsetd15
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd15,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd15,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 3',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+TODO
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("Skin", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("Skin")%>% which() -> a.subset
+a.subset
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subset,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subset,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'Todo',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```

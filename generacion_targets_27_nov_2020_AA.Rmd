@@ -1,0 +1,124 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+
+download.file(url= "https://2020-11-26-metaanalisis.s3-us-west-2.amazonaws.com/GSMs_filtrados.rds",  destfile = "GSMs_filtrados.rds")
+download.file(url= "https://2020-11-26-metaanalisis.s3-us-west-2.amazonaws.com/list_con_eset_filtrados.rds",  destfile = "list_con_eset_filtrados.rds")
+
+
+GSMs_filtrados          <- readRDS( "GSMs_filtrados.rds")
+list_con_eset_filtrados <- readRDS( "list_con_eset_filtrados.rds")
+```
+
+
+```{r}
+library(Biobase)
+list_con_eset_filtrados$`GSE6924-GPL3976` -> un_estudio
+
+
+un_estudio     %>% pData %>% dplyr::select(matches('source.*ch') | matches('geo')| matches('label')) -> para_targets_0
+
+para_targets_0 %>% mutate_at('source_name_ch1', ~str_replace(.,'.*control.*','control'))%>% 
+                   mutate_at('source_name_ch1', ~str_replace(.,'.*challenged.*','infected'))%>% 
+                   mutate_at('source_name_ch2', ~str_replace(.,'.*reference.*','control'))%>% 
+                   unite("Alexa 555", source_name_ch1,label_ch1, sep ="-")%>% 
+                   unite("Alexa 647", source_name_ch2,label_ch2, sep ="-")  %>%
+                     mutate_at('Alexa 555', ~str_extract(.,".*(?=-Alexa)")) %>%
+                     mutate_at('Alexa 647', ~str_extract(.,".*(?=-Alexa)")) %>% 
+                     select(matches('alexa|geo')) -> `GSE6924-GPL3976`
+
+                          
+```
+
+
+```{r}
+library(Biobase)
+list_con_eset_filtrados$GSE18219 -> un_estudio
+un_estudio     %>% pData %>% dplyr::select(matches('source.*ch') | matches('geo')| matches('label')) %>% filter(str_detect(source_name_ch1,'exposed', negate = T)) %>%
+                             mutate_at('source_name_ch1', ~str_replace(.,'.*control.*','control')) %>%
+                             mutate_at('source_name_ch1', ~str_replace(.,'.*infected.*','infected'))%>%
+                             mutate_at('source_name_ch2', ~str_replace(.,'.*reference.*','control')) %>% 
+                                    unite("Channel 1", source_name_ch1,label_ch1, sep ="-") %>%
+                                     unite("Channel 2", source_name_ch2,label_ch2, sep ="-") %>% 
+                                     select(matches("channel|geo")) -> df
+
+```
+
+```{r}
+#Dos pasos donde creamos las columnas Cy5 y Cy3
+#ifelse (TRUE/FLASE, si es TRUE, si es FALSE )
+
+df %>% mutate(Cy5= ifelse( str_detect(`Channel 1`, "Cy5"), .[["Channel 1"]], .[["Channel 2"]]  ) ) %>% 
+mutate(Cy3= ifelse( str_detect(`Channel 2`, "Cy3"), .[["Channel 2"]], .[["Channel 1"]]  ) ) %>%select(matches("cy|geo")) -> df_target
+
+
+#Chequeo
+chequear_GSMs <- function(df_target, df, fila){(df_target  %>% select(-geo_accession)  %>% as.matrix %>% .[fila,]) %in%
+                                         (df         %>% select(-geo_accession)  %>% as.matrix  %>% .[fila,] ) %>% all -> OKs
+ 
+                                           return(OKs)}
+
+
+OKs <- as.logical()
+for(i in 1:nrow(df_target)){
+                         chequear_GSMs(df_target,df,fila=i) -> OKs[i]
+                           }
+
+OKs %>% all
+df_target -> GSE18219
+```
+
+```{r}
+library(Biobase)
+list_con_eset_filtrados$GSE6105 -> un_estudio
+un_estudio     %>% pData %>% dplyr::select(matches('source.*ch') | matches('geo')| matches('label'))-> para_targets_0
+
+
+para_targets_0 %>% mutate_at('source_name_ch1', ~str_replace(.,'.*control.*','control'))%>% 
+                   mutate_at('source_name_ch1', ~str_replace(.,'.*infection.*','infected')) %>%
+                   mutate(Biotin = source_name_ch1) %>% select(matches("geo|bio")) -> GSE6105
+
+```
+
+```{r}
+library(Hmisc)
+llist(GSE6105,GSE18219,`GSE6924-GPL3976`) -> mis.targets
+mis.targets
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

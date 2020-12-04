@@ -1,0 +1,158 @@
+---
+title: "Construyendo excel"
+output: html_notebook
+---
+
+```{r}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse")
+libraries(librerias)
+```
+
+
+```{r}
+my_getGEO <- function (codigo_gse){
+  try(getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data)
+  try(my.gse.data %<>% names %>% str_extract('GSE\\d+(-GPL\\d+)?') %>% set_names(my.gse.data,.))
+  return(my.gse.data)}
+mis.codigos.gse <- c('GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184','GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756')
+mis_gse_data_1 <- map(mis.codigos.gse, my_getGEO) %>% unlist 
+saveRDS(mis_gse_data_1, "~/Documents/Practica profesional/proyecto/mis_gse_data_1.rds")
+mis_gse_data_1 %>% names
+
+```
+
+```{r}
+pth <- '~/Documents/Practica profesional/proyecto/mis_gse_data_1.rds'
+RDS <- readRDS(pth)
+```
+
+
+```{r}
+titulos <- data.frame()
+b <- RDS %>% names
+for(i in 1:length(b)) {
+  if  (b[i]=="GSE6105"|b[i]=="GSE6350"|b[i]=="GSE19049"|b[i]=="GSE51603"){
+  pData(RDS[[i]]) %<>% filter(str_detect(title,'control|infection'))
+  }
+    else if (b[i]== "GSE44352-GPL14875"|b[i] == "GSE44352-GPL15180'") {
+    pData(RDS[[i]]) %<>% filter(str_detect(title,'zebrafish'))
+  }
+    else if (b[i] == "GSE1012"| b[i]== "GSE1031"){
+    pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'Non-infected|Piscirickettsia')& str_detect(source_name_ch2,'Non-infected|Piscirickettsia'))
+    }
+    else if (b[i] == "GSE6924-GPL2899"){
+      pData(RDS[[i]])%<>% filter(str_detect(title,'day5|day9'))
+    }
+    else if (b[i] == "GSE6924-GPL3976"){
+      pData(RDS[[i]])%<>% filter(str_detect(title,'controls') | str_detect(title, 'day1', negate= T))
+        }
+ 
+  else if (b[i] == "GSE9595"){
+      pData(RDS[[i]])%<>% filter(str_detect(title,'AGD')) 
+  }
+  else if (b[i] == "GSE10272"){ 
+    pData(RDS[[i]]) %<>% filter(str_detect(title,'72h'))
+  }
+  else if (b[i] == "GSE13994"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'24hpi'))
+  }
+  else if (b[i] == "GSE15328"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'120hpi|6dpi|control|PBS'))
+  }
+  else if (b[i] == "GSE19630"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'16j|7j'))
+  }
+  else if (b[i] == "GSE20310"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'Infected|Not.infected'))
+  }
+  else if (b[i] == "GSE18219" | b[i] == "GSE19646"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'(?i)control|infected',)& str_detect(source_name_ch1,'EXPOSED', negate = T))
+  }
+  else if (b[i] == "GSE26984"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'infected'))
+  }
+  else if (b[i] == "GSE28843-GPL10679"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'Heart.*4.wpi',negate = T) & str_detect(title, '4.wpi|10.wpi'))
+  }
+  else if (b[i] == "GSE28843-GPL10705"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'8 wpi'))
+  }
+  else if (b[i] == "GSE30426"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'3 p.i|not infected'))
+  }
+  else if (b[i] == "GSE28357"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'0h|63d'))
+  }
+  else if (b[i] == "GSE34745"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'Infected, Day 4|Control, Day 4'))
+  }
+  else if (b[i] == "GSE35184"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'control|25'))
+  }
+  else if (b[i] == "GSE35448"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'Susceptible'))
+  }
+  else if (b[i] == "GSE35804"){
+      pData(RDS[[i]]) %<>% filter(str_detect(title,'Naive'))
+  }
+  else if (b[i] == "GSE35633"){
+      pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'late infected|control'))
+  }
+  else if (b[i] == "GSE36332"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'Unvaccinated')) %>% filter(str_detect(title, '0h|72h'))
+  }
+  else if (b[i] == "GSE38763"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'No estrogen'))
+  }
+  else if (b[i] == "GSE40733"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'12h'))
+  }
+  else if (b[i] == "GSE26651"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'day2'))
+  }
+  else if (b[i] == "GSE39274"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'mutant', negate =T))
+  }
+  else if (b[i] == "GSE42263"){
+     pData(RDS[[i]]) %<>%  filter(str_detect(title,'non-infected') | str_detect(title, 'infected'))
+  }
+  else if (b[i] == "GSE42847-GPL14875"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'Non-injected|5 DPI'))
+  }
+  else if (b[i] == "GSE42847-GPL15180"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'126HPI|102HPI'))
+  }
+  else if (b[i] == "GSE47057"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'infected'))
+  }
+  else if (b[i] == "GSE51839"){
+     pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'21dpi'))
+  }
+   else if (b[i] == "GSE56487"){
+     pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'-injected') & str_detect(source_name_ch1,'vaccine', negate = T)) %>% filter(str_detect(source_name_ch1, '72hpi'))
+   }
+   else if (b[i] == "GSE43255"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title, 'High'))
+   }
+   else if (b[i] == "GSE45163"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'Control|12h after'))
+   }
+   else if (b[i] == "GSE58823"){
+     pData(RDS[[i]]) %<>% filter(str_detect(title,'Control|VHSV'))
+   }
+   else if (b[i] == "GSE87920"){
+     pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'fed control')) %>% filter(str_detect(source_name_ch1,'20 days post challenge.'))
+   }
+  else if (b[i] == "GSE101695"){
+     pData(RDS[[i]]) %<>% filter(str_detect(characteristics_ch1.1,'control|infected'))
+  }
+  else if (b[i] == "GSE140756"){
+     pData(RDS[[i]]) %<>% filter(str_detect(source_name_ch1,'control|ATT'))
+  }
+   titulos <- bind_rows(titulos,pData((RDS[[i]])))
+    }
+final <-titulos %>% enframe %>% unnest %>%  select(matches("^name$|title|geo|source|characteristics|organism'"))
+write.csv(final, "~/Documents/Practica profesional/proyecto/try1.csv")
+```
+
