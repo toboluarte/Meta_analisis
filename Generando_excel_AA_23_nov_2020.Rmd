@@ -468,7 +468,7 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 ```{r}
 ##single channel
 list_con_eset_filtrados$GSE51839 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cyc3",source_name_ch1,label_ch1) %>% mutate_at("Cyc3",~str_replace(.,'.*Control.*', 'control'))%>% mutate_at("Cyc3",~str_replace(.,'.*Mock.*', 'control')) %>%mutate_at("Cyc3",~str_replace(.,'.*Challenged.*', 'infected')) %>% select(matches('cy')|matches('geo')) -> GSE51839
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3",source_name_ch1,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*Control.*', 'control'))%>% mutate_at("Cy3",~str_replace(.,'.*Mock.*', 'control')) %>%mutate_at("Cy3",~str_replace(.,'.*Challenged.*', 'infected')) %>% select(matches('cy')|matches('geo')) -> GSE51839
 ```
 
 ```{r}
@@ -497,9 +497,9 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 ```
 
 ```{r}
-##Dye swap, no hay informacion de los canales 
+##Dye swap, no hay informacion de los canales (considerare Cy3 canal 1 y Cy5 canal 2)
 list_con_eset_filtrados$GSE87920 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label'))
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3",source_name_ch1,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*mock.*', 'control')) %>% mutate_at("Cy3",~str_replace(.,'.*salmonicida.*', 'infected'))  %>% unite("Cy5", source_name_ch2,label_ch2) %>% mutate_at("Cy5",~str_replace(.,'.*mock.*', 'control')) %>% select(matches('geo')|matches('cy')) -> GSE87920
 ```
 
 ```{r}
@@ -544,21 +544,49 @@ df_target -> GSE18219
 
 ```{r}
 ### juntando los targets
-llist(GSE1012,GSE1031,GSE6105,GSE6350,`GSE6924-GPL3976`,`GSE6924-GPL2899` ,GSE10272,GSE13994,GSE15328,GSE19049,GSE19630,GSE20310,GSE18219,GSE19646,GSE26984,`GSE28843-GPL10679`,`GSE28843-GPL10705`,GSE30426,GSE30426,GSE28357,GSE34745,GSE35184,GSE35448,GSE35633,GSE35804,GSE36072,GSE36332,GSE38763,GSE40733,GSE26651,GSE39274,GSE42263,`GSE42847-GPL14875`,`GSE42847-GPL15180`,`GSE44352-GPL14875`,`GSE44352-GPL15180` ,GSE47057,GSE51603,GSE51839,GSE56487,GSE43255,GSE45163,GSE58823,GSE101695,GSE140756) -> mis.targets
+llist(GSE1012,GSE1031,GSE6105,GSE6350,`GSE6924-GPL3976`,`GSE6924-GPL2899` ,GSE10272,GSE13994,GSE15328,GSE19049,GSE19630,GSE20310,GSE18219,GSE19646,GSE26984,`GSE28843-GPL10679`,`GSE28843-GPL10705`,GSE30426,GSE30426,GSE28357,GSE34745,GSE35184,GSE35448,GSE35633,GSE35804,GSE36072,GSE36332,GSE38763,GSE40733,GSE26651,GSE39274,GSE42263,`GSE42847-GPL14875`,`GSE42847-GPL15180`,`GSE44352-GPL14875`,`GSE44352-GPL15180` ,GSE47057,GSE51603,GSE51839,GSE56487,GSE43255,GSE45163,GSE58823,GSE101695,GSE140756, GSE87920) -> mis.targets
 
 saveRDS(mis.targets, path)
 mis.targets <- readRDS(path)
-mis.targets[7]
+
+
 ```
 
+############################
+## Alejandro:
 ```{r}
+download.file("https://www.dropbox.com/s/0jgehongd9ebh0k/mis_target.rds", destfile = "mis_target.rds", method = "wget")
+mis.targets <- readRDS("mis_target.rds")
+```
 
+## Alejandro:
+```{r warning=TRUE}
+get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
+                                      function(un_codigo_gsm){ try(
+                                        GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
+                                          rownames}) %>% unlist}
+purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
+mis.targets %<>% enframe %>% unnest 
+purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> hola
+
+
+hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> hola2
+
+
+inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
+full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
+identical(target_final$name.x, target_final$name.y)
+
+```
+###
+```{r}
+### pulir y corroborar que funciona (método de loopeo)
 ## Hay muchos GSMS que no tienen material suplementario disponible para la descarga, lo que genera un problema con el str_split para lograr generar el output
 mis.path <- list()
 output <- list()
-for (i in 1:length(mis.targets)){
+for (i in 1:6){
   for (j in 1:length(mis.targets[[i]]$geo_accession)){
-    output <- append(output, rownames(getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = FALSE )) %>% unlist())# %>% strsplit('" "') %>% unlist())
+    output <- append(output, getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) %>% rownames())
     output <- output %>% unlist()
   }
   mis.path[[i]] <- append(mis.path, output) %>% unlist()
@@ -581,40 +609,6 @@ mutate(file_pathCH2= ifelse( str_detect(`CH2`, "CH1"), .[["CH1"]], .[["CH2"]]  )
   test[[cn]]<-bind_cols(test[cn],a)
 }
 
-
-
-####backup
-#mis.path <- append(mis.path, rownames(getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = TRUE )) %>% 
-             strsplit('" "') %>% unlist())
-##idea inconclusa
-#for (i in length(mis.path)){
- # if (mis.path[[i]] %>% == mis.targets[[i]]$geo_accession){
-  #  mis.targets[i]$file_path <- 
-  #}
-  
-#}
-
-#mis.path[6]
-#to_bind[4]
-#´mis.gsm <- mis.gsm %>% unlist()
-#tt <- data.frame(file_path=mis.gsm)
-
-#append()
-#mis.path[1,] %>% class
-#mis.targets[[1]]$file_path[1] <- c('hola')
-#saveRDS(mis.gsm,file= "test.rds")
-
-#a <- getGEOSuppFiles(mis.targets[[1]]$geo_accession[1], makeDirectory = TRUE, baseDir =getwd(), fetch_files = TRUE )
-#rownames(a) %>% strsplit('" "') %>% unlist() -> b
-#mis.targets[[1]] %>% unite()
-#mis.gsm[[1]] %>% select(matches('GSM')) %>% split(.,seq(nrow(.))) -> objeto[[1]]
-#t <- mis.gsm[[1]] %>% select(matches('GSM'))
-#a = 0
-#for (i in 1:length(mis.targets)){
- # a= a+length(mis.targets[[i]]$geo_accession)
-#}
-#a
-#mis.path[1,]
 ```
  
 
