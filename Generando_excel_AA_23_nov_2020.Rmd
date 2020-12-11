@@ -1,17 +1,18 @@
 ---
-title: "Construyendo excel"
+title: "Proyecto"
 output: html_notebook
 ---
 
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc")
 libraries(librerias)
 ```
 
 ```{r}
 #Armar mi ruta
 pth <- file.path(getwd(),'mis_gse_data_1.rds')
+path <- file.path(getwd(), 'mis_target.rds')
 ```
 
 
@@ -20,12 +21,13 @@ my_getGEO <- function (codigo_gse){
   try(getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data)
   try(my.gse.data %<>% names %>% str_extract('GSE\\d+(-GPL\\d+)?') %>% set_names(my.gse.data,.))
   return(my.gse.data)}
-mis.codigos.gse <- c('GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184','GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756')
+mis.codigos.gse <- c('GSE1012','GSE1031','GSE6105','GSE6350','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184','GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756')
 mis_gse_data_1 <- map(mis.codigos.gse, my_getGEO) %>% unlist 
 
 
 saveRDS(mis_gse_data_1, pth)
-RDS$GSE51839 %>% pData()
+RDS$GSE10272 %>% pData()
+
 ```
 
 ```{r}
@@ -36,12 +38,15 @@ b <- RDS %>% names
 
 for(i in 1:length(b)) {
   if  (b[i]=="GSE6105"|b[i]=="GSE6350"){
-       RDS[[i]]  -> mi.gse                                                                                             ####OK
+       RDS[[i]]  -> mi.gse;                                                                                         ####OK
        pData(mi.gse) %>% filter(str_detect(title,'control|infection')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
     
   }
   else if (b[i]=="GSE51603"){
     RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title, '21dpi|1dpi')) %>%rownames() %>% mi.gse[, .] -> un_eset_filtrado
+  }
+  else if (b[i]=="GSE19646"){
+    RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(source_name_ch1, 'CONTROL|INFECTED')& str_detect(source_name_ch1 ,'EXPOSED', negate = T)) %>%rownames() %>% mi.gse[, .] -> un_eset_filtrado
   }
     else if (b[i]== "GSE44352-GPL14875"|b[i] == "GSE44352-GPL15180'") {
        RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'zebrafish')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
@@ -49,7 +54,7 @@ for(i in 1:length(b)) {
   else if (b[i]=="GSE19049"){
     RDS[[i]] -> mi.gse; pData(mi.gse) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ## no filters requiered unless we want to filter by organ 
   }
-    else if (b[i] == "GSE1012"| b[i]== "GSE1031"){ ### Hacer insensible a mayusculas
+    else if (b[i] == "GSE1012"| b[i]== "GSE1031"){
      RDS[[i]]  -> mi.gse; pData(mi.gse) %>%filter(str_detect(source_name_ch1,'(?i)Non-infected|Piscirickettsia')& str_detect(source_name_ch2,'(?i)Non-infected|(?i)Piscirickettsia')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
     }
     else if (b[i] == "GSE6924-GPL2899"){
@@ -63,7 +68,7 @@ for(i in 1:length(b)) {
      RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'AGD'))  %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
   }
   else if (b[i] == "GSE10272"){ 
-    RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'72h')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
+    RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'72h') & str_detect(title, 'attenuated', negate = T)) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
   }
   else if (b[i] == "GSE13994"){
        RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'24hpi')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado ####OK
@@ -187,11 +192,12 @@ list_con_eset_filtrados %>% map(pData) %>% enframe %>% unnest %>%
                      dplyr::select(matches('^name$|title|geo|source|characteristics|organism')) -> GSMs_filtrados
 
 ##escritura excel cambiar directorio ##
-write.xlsx2(GSMs_filtrados, "~/Documents/Practica profesional/proyecto/try2.xlsx")
+write.xlsx2(GSMs_filtrados, getwd())
 ```
 
 ```{r}
 ### Target generations
+## la informacion de los tejidos podria se agregadas 
 list_con_eset_filtrados$`GSE6924-GPL3976` -> un_estudio
 
 
@@ -207,8 +213,20 @@ para_targets_0 %>% mutate_at('source_name_ch1', ~str_replace(.,'.*control.*','co
                      select(matches('alexa|geo')) -> 'GSE6924-GPL3976'
 ####Sin dye swap
 list_con_eset_filtrados$`GSE6924-GPL2899` -> un_estudio
-un_estudio%>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>% unite("Cy3",source_name_ch1) %>% unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*non-infected.*','control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*','infected'))%>%
-                             mutate_at('Cy5', ~str_replace(.,'.*non-infected.*','control'))%>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*','infected')) -> `GSE6924-GPL2899`  
+un_estudio%>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>% unite("Alexa 555",source_name_ch1) %>% unite("Alexa 647",source_name_ch2) %>%  mutate_at('Alexa 555', ~str_replace(.,'.*necrosis.*','infected')) %>% mutate_at('Alexa 647', ~str_replace(.,'.*reference.*','control')) %>% select(matches('geo')|matches('Alexa')) -> `GSE6924-GPL2899`  
+
+```
+
+```{r}
+#DYE SWAP, Reference sera considerado como control, puesto que sera una mezcla de todos los RNA
+list_con_eset_filtrados$GSE19646 -> un_estudio
+un_estudio     %>% pData %>% dplyr::select(matches('source.*ch') | matches('geo')| matches('label')) %>% mutate_at('source_name_ch1', ~str_replace(.,'.*CONTROL.*','control'))%>%mutate_at('source_name_ch1', ~str_replace(.,'.*INFECTED.*','infected'))%>% mutate_at('source_name_ch2',~str_replace(.,'.*REFERENCE.*','control'))%>% unite("Channel 1", source_name_ch1,label_ch1, sep ="-") %>%                             unite("Channel 2", source_name_ch2,label_ch2, sep ="-") %>% mutate(Cy5= ifelse( str_detect(`Channel 1`, "Cy5"), .[["Channel 1"]], .[["Channel 2"]]  ) ) %>% 
+mutate(Cy3= ifelse( str_detect(`Channel 2`, "Cy3"), .[["Channel 2"]], .[["Channel 1"]]  ) ) %>%select(matches("cy|geo"))%>% 
+                             mutate_at('Cy5', ~str_replace(.,'.*control.*','control'))%>% 
+                             mutate_at('Cy5', ~str_replace(.,'.*infected.*','infected')) %>% 
+                             mutate_at('Cy3', ~str_replace(.,'.*control.*','control'))%>% 
+                             mutate_at('Cy3', ~str_replace(.,'.*infected.*','infected')) -> GSE19646
+                  
 
 ```
 
@@ -236,7 +254,7 @@ mutate(Cy3= ifelse( str_detect(`Channel 2`, "Cy3"), .[["Channel 2"]], .[["Channe
 ```{r}
 ##sin dyeswap
 list_con_eset_filtrados$GSE1031 -> un_estudio 
-un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) -> GSE1031 
+un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% select(matches('geo')|matches('cy')) -> GSE1031 
 ```
 
 ```{r}
@@ -253,14 +271,14 @@ un_estudio %>% pData %>% select(matches('source.*ch') | matches('geo')| matches(
 
 ```{r}
 #Sin dyeswap y no es posible eliminar la covariable lesion
-list_con_eset_filtrados$GSE9595 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>% mutate_at()
+#list_con_eset_filtrados$GSE9595 -> un_estudio 
+#un_estudio %>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>% mutate_at()
 ```
 
 ```{r}
-##Sin dye swap, Recordar que se esta considerando el virus atenuado como "control" e infectados LPS 
+##Sin dye swap, Recordar que se esta considerando el virus no atenuado como "infected" y LPS como control  
 list_con_eset_filtrados$GSE10272 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>%  mutate_at('source_name_ch1', ~str_replace(.,'.*att.*','control')) %>%  mutate_at('source_name_ch2', ~str_replace(.,'.*att.*','control')) %>%  mutate_at('source_name_ch1', ~str_replace(.,'.*LPS.*','infected')) %>% mutate_at('source_name_ch2', ~str_replace(.,'.*LPS.*','infected')) %>% mutate_at('source_name_ch1', ~str_replace(.,'.*IHNV.*','infected')) %>% mutate_at('source_name_ch2', ~str_replace(.,'.*IHNV.*','infected')) %>% unite("Cy5", source_name_ch1,label_ch1, sep ="-") %>%unite("Cy3", source_name_ch2,label_ch2, sep ="-")  %>%  mutate_at('Cy5', ~str_replace(.,'.*control.*','control'))%>% mutate_at('Cy5', ~str_replace(.,'.*infected.*','infected')) %>% mutate_at('Cy3', ~str_replace(.,'.*control.*','control'))%>% mutate_at('Cy3', ~str_replace(.,'.*infected.*','infected')) -> GSE10272
+un_estudio %>% pData %>% select(matches('source.*ch') | matches('geo')| matches('label')) %>%  mutate_at('source_name_ch1', ~str_replace(.,'.*LPS.*','control')) %>%  mutate_at('source_name_ch2', ~str_replace(.,'.*LPS.*','control')) %>%  mutate_at('source_name_ch1', ~str_replace(.,'.*IHNV.*','infected')) %>% mutate_at('source_name_ch2', ~str_replace(.,'.*IHNV.*','infected')) %>% unite("Cy5", source_name_ch1,label_ch1, sep ="-") %>%unite("Cy3", source_name_ch2,label_ch2, sep ="-")  %>%  mutate_at('Cy5', ~str_replace(.,'.*control.*','control'))%>% mutate_at('Cy5', ~str_replace(.,'.*infected.*','infected')) %>% mutate_at('Cy3', ~str_replace(.,'.*control.*','control'))%>% mutate_at('Cy3', ~str_replace(.,'.*infected.*','infected')) %>% select(matches('geo')|matches('cy')) -> GSE10272
 ```
 
 ```{r}
@@ -275,11 +293,11 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 ### podria ser util solo dejar los controles (PBS)  vs infectados cronicos eliminando todos los Common reference (Filtro arreglado )
 ## sin dye swap
 list_con_eset_filtrados$GSE15328 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')| matches('title')) %>% unite("Cy3", source_name_ch1,label_ch1) %>% unite("Cy5", source_name_ch2,label_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*control.*', 'control')) %>% mutate_at("Cy5",~str_replace(.,'.*infected.*', 'infected')) -> GSE15328
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')| matches('title')) %>% unite("Cy3", source_name_ch1,label_ch1) %>% unite("Cy5", source_name_ch2,label_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*control.*', 'control')) %>% mutate_at("Cy5",~str_replace(.,'.*infected.*', 'infected')) %>% select(matches('geo')|matches('cy')) -> GSE15328
 ```
 
 ```{r}
-#single channel, 
+#single channel 
 list_con_eset_filtrados$GSE19049 -> un_estudio 
 un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')| matches('title')) %>% unite('Cy3', source_name_ch1,label_ch1) %>% select(matches('cy3')| matches('geo')) %>% mutate_at('Cy3', ~str_replace(.,".*infection.*","infected")) %>% mutate_at('Cy3', ~str_replace(.,".*control.*","control")) -> GSE19049
 ```
@@ -287,13 +305,13 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 ```{r}
 #no dye swap, en este caso los Rna's de referencia son 18 salmones sanos por lo tanto seran considerados como control
 list_con_eset_filtrados$GSE19630 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite('Alexa 555', source_name_ch1,label_ch1) %>% unite("Alexa 647", source_name_ch2,label_ch2) %>% mutate_at('Alexa 555', ~str_replace(.,".*control.*","control"))%>% mutate_at('Alexa 555', ~str_replace(.,".*infected.*","infected")) %>%  mutate_at('Alexa 647', ~str_replace(.,".*reference.*","control")) -> GSE19630
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite('Alexa 555', source_name_ch1,label_ch1) %>% unite("Alexa 647", source_name_ch2,label_ch2) %>% mutate_at('Alexa 555', ~str_replace(.,".*control.*","control"))%>% mutate_at('Alexa 555', ~str_replace(.,".*infected.*","infected")) %>%  mutate_at('Alexa 647', ~str_replace(.,".*reference.*","control")) %>% select(matches('geo')|matches('Alexa')) -> GSE19630
 ```
 
 ```{r}
 #single channel 
 list_con_eset_filtrados$GSE20310 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite('Cy3', source_name_ch1,label_ch1) %>% mutate_at('Cy3', ~str_replace(.,".*S.th.*", "infected")) %>% mutate_at('Cy3', ~str_replace(.,".*PBS.*", "control")) -> GSE20310
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite('Cy3', source_name_ch1,label_ch1) %>% mutate_at('Cy3', ~str_replace(.,".*S.th.*", "infected")) %>% mutate_at('Cy3', ~str_replace(.,".*PBS.*", "control")) %>% select(matches('geo')|matches('cy')) -> GSE20310
 ```
 
 ```{r}
@@ -335,14 +353,14 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 
 ```{r}
 list_con_eset_filtrados$GSE28357 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>%  unite("Cy3", source_name_ch1,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*63d.*', 'infected')) %>% mutate_at("Cy3",~str_replace(.,'.*0h.*', 'control')) -> GSE28357 
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>%  unite("Cy3", source_name_ch1,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*63d.*', 'infected')) %>% mutate_at("Cy3",~str_replace(.,'.*0h.*', 'control')) %>%select(matches('geo')| matches('cy'))  -> GSE28357 
 
 ```
 
 ```{r}
 #No Dye Swap
 list_con_eset_filtrados$GSE34745 -> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1,label_ch1) %>% unite("Cy5", source_name_ch2,label_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*Infected.*', 'infected')) %>% mutate_at("Cy3",~str_replace(.,'.*Control.*', 'control')) %>% mutate_at("Cy5",~str_replace(.,'.*Infected.*', 'infected')) %>% mutate_at("Cy5",~str_replace(.,'.*Control.*', 'control')) -> GSE34745
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1,label_ch1) %>% unite("Cy5", source_name_ch2,label_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*Infected.*', 'infected')) %>% mutate_at("Cy3",~str_replace(.,'.*Control.*', 'control')) %>% mutate_at("Cy5",~str_replace(.,'.*Infected.*', 'infected')) %>% mutate_at("Cy5",~str_replace(.,'.*Control.*', 'control')) %>% select(matches('geo')| matches('cy')) -> GSE34745
 ```
 
 ```{r}
@@ -399,7 +417,7 @@ mutate(Cy3= ifelse( str_detect(`Channel 2`, "Cy3"), .[["Channel 2"]], .[["Channe
 ```{r}
 #single channel
 list_con_eset_filtrados$GSE26651-> un_estudio 
-un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cyanine 3", source_name_ch1,label_ch1) %>% mutate_at("Cyanine 3",~str_replace(.,'.*mock.*', 'control')) %>% mutate_at("Cyanine 3",~str_replace(.,'.*infected.*', 'infected')) %>% select(matches('Cyanine 3')| matches('geo')) -> GSE26651
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*mock.*', 'control')) %>% mutate_at("Cy3",~str_replace(.,'.*infected.*', 'infected')) %>% select(matches('Cy3')| matches('geo')) -> GSE26651
 ```
 
 ```{r}
@@ -495,26 +513,6 @@ list_con_eset_filtrados$GSE140756 -> un_estudio
 un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')|matches('title')) %>% unite("Cy3",title,label_ch1) %>% mutate_at("Cy3",~str_replace(.,'.*(?i)control.*', 'control')) %>% mutate_at("Cy3",~str_replace(.,'.*LG.*', 'infected')) %>% select(matches('geo')|matches('cy'))->GSE140756
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```{r}
 list_con_eset_filtrados$GSE6105 -> un_estudio
 un_estudio     %>% pData %>% dplyr::select(matches('source.*ch') | matches('geo')| matches('label'))-> para_targets_0
@@ -526,10 +524,6 @@ para_targets_0 %>% mutate_at('source_name_ch1', ~str_replace(.,'.*control.*','co
 
 ```
 
-```{r}
-RDS$GSE10272 %>% pData()
-
-```
 
 ```{r}
 #Chequeo
@@ -550,10 +544,79 @@ df_target -> GSE18219
 
 ```{r}
 ### juntando los targets
-library(Hmisc)
-llist(GSE6105,GSE18219,`GSE6924-GPL3976`) -> mis.targets
-mis.targets
+llist(GSE1012,GSE1031,GSE6105,GSE6350,`GSE6924-GPL3976`,`GSE6924-GPL2899` ,GSE10272,GSE13994,GSE15328,GSE19049,GSE19630,GSE20310,GSE18219,GSE19646,GSE26984,`GSE28843-GPL10679`,`GSE28843-GPL10705`,GSE30426,GSE30426,GSE28357,GSE34745,GSE35184,GSE35448,GSE35633,GSE35804,GSE36072,GSE36332,GSE38763,GSE40733,GSE26651,GSE39274,GSE42263,`GSE42847-GPL14875`,`GSE42847-GPL15180`,`GSE44352-GPL14875`,`GSE44352-GPL15180` ,GSE47057,GSE51603,GSE51839,GSE56487,GSE43255,GSE45163,GSE58823,GSE101695,GSE140756) -> mis.targets
+
+saveRDS(mis.targets, path)
+mis.targets <- readRDS(path)
+mis.targets[7]
 ```
+
+```{r}
+
+## Hay muchos GSMS que no tienen material suplementario disponible para la descarga, lo que genera un problema con el str_split para lograr generar el output
+mis.path <- list()
+output <- list()
+for (i in 1:length(mis.targets)){
+  for (j in 1:length(mis.targets[[i]]$geo_accession)){
+    output <- append(output, rownames(getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = FALSE )) %>% unlist())# %>% strsplit('" "') %>% unlist())
+    output <- output %>% unlist()
+  }
+  mis.path[[i]] <- append(mis.path, output) %>% unlist()
+  output <- list()
+}
+
+test <- mis.targets
+cn <- 0
+for (i in mis.path){
+  if (sum(grepl('CH2',mis.path)) != 0) {
+    a <- matrix(data = i,ncol=2 ) %>% as.data.frame()
+    colnames(a) <- c("CH1", "CH2")
+    a <-a %>% mutate(file_pathCH1= ifelse( str_detect(`CH1`, "CH2"), .[["CH2"]], .[["CH1"]]  ) )%>% 
+mutate(file_pathCH2= ifelse( str_detect(`CH2`, "CH1"), .[["CH1"]], .[["CH2"]]  ) ) %>% select(-c(CH1,CH2))
+  }
+  else {a <- data.frame(file_pathCH1= i )
+    
+  }
+  cn <- cn + 1
+  test[[cn]]<-bind_cols(test[cn],a)
+}
+
+
+
+####backup
+#mis.path <- append(mis.path, rownames(getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = TRUE )) %>% 
+             strsplit('" "') %>% unlist())
+##idea inconclusa
+#for (i in length(mis.path)){
+ # if (mis.path[[i]] %>% == mis.targets[[i]]$geo_accession){
+  #  mis.targets[i]$file_path <- 
+  #}
+  
+#}
+
+#mis.path[6]
+#to_bind[4]
+#´mis.gsm <- mis.gsm %>% unlist()
+#tt <- data.frame(file_path=mis.gsm)
+
+#append()
+#mis.path[1,] %>% class
+#mis.targets[[1]]$file_path[1] <- c('hola')
+#saveRDS(mis.gsm,file= "test.rds")
+
+#a <- getGEOSuppFiles(mis.targets[[1]]$geo_accession[1], makeDirectory = TRUE, baseDir =getwd(), fetch_files = TRUE )
+#rownames(a) %>% strsplit('" "') %>% unlist() -> b
+#mis.targets[[1]] %>% unite()
+#mis.gsm[[1]] %>% select(matches('GSM')) %>% split(.,seq(nrow(.))) -> objeto[[1]]
+#t <- mis.gsm[[1]] %>% select(matches('GSM'))
+#a = 0
+#for (i in 1:length(mis.targets)){
+ # a= a+length(mis.targets[[i]]$geo_accession)
+#}
+#a
+#mis.path[1,]
+```
+ 
 
 
 
