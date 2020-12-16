@@ -5,7 +5,7 @@ output: html_notebook
 
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse")
 libraries(librerias)
 ```
 
@@ -26,7 +26,6 @@ mis_gse_data_1 <- map(mis.codigos.gse, my_getGEO) %>% unlist
 
 
 saveRDS(mis_gse_data_1, pth)
-RDS$GSE10272 %>% pData()
 
 ```
 
@@ -188,11 +187,11 @@ for(i in 1:length(b)) {
 }
 
 
-list_con_eset_filtrados %>% map(pData) %>% enframe %>% unnest %>% 
+list_con_eset_filtrados %>% map(pData) %>% enframe%>%  unnest %>% 
                      dplyr::select(matches('^name$|title|geo|source|characteristics|organism')) -> GSMs_filtrados
 
 ##escritura excel cambiar directorio ##
-write.xlsx2(GSMs_filtrados, getwd())
+xlsx::write.xlsx2(GSMs_filtrados, "Excel.xlsx")
 ```
 
 ```{r}
@@ -576,6 +575,56 @@ hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\
 inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
 full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
 identical(target_final$name.x, target_final$name.y)
+saving <- file.path(getwd(),'tabla_targets.rds')
+saveRDS(target_final, saving)
+```
+
+
+```{r warning=TRUE}
+##Extracción de extensiones 
+str_extract(target_final$value, "[.]([a-z])*[.]") %>% unique() -> Extensiones
+Extensiones
+#puede ser utilizado para automatizar este proceso
+```
+
+
+```{r warning=TRUE}
+#Sorting de path segun extensiones
+archivos_tif <- list()
+archivos_gpr <- list()
+archivos_ftr <- list()
+archivos_txt <- list()
+archivos_xml <- list()
+archivos_tsv <- list()
+
+for (i in 1:length(target_final$value)){
+  
+  if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tif." ){
+    
+    archivos_tif <-append(archivos_tif,target_final$value[i])
+    }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".ftr." ){
+    archivos_ftr <-append(archivos_ftr,target_final$value[i])
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".xml." ){
+    archivos_xml <-append(archivos_xml,target_final$value[i])
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".txt." ){
+    archivos_txt <-append(archivos_txt,target_final$value[i])
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".gpr." ) {
+    archivos_gpr <-append(archivos_gpr,target_final$value[i])
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tsv.") {
+    archivos_tsv <-append(archivos_tsv,target_final$value[i])
+  }
+}
+archivos_tif %>%  unlist()
+archivos_gpr  %>% unlist()
+archivos_ftr  %>% unlist()
+archivos_txt  %>% unlist()
+archivos_xml  %>% unlist()
+archivos_tsv  %>% unlist()
 
 ```
 ###
