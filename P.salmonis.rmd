@@ -1,0 +1,57 @@
+---
+title: "P.salmonis"
+output: html_notebook
+---
+
+
+
+```{r}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse")
+libraries(librerias)
+```
+
+```{r}
+#Rutas de guardado y lectura
+pth <- file.path(getwd(),'mis_gse_data_1.rds')
+path <- file.path(getwd(), 'mis_target.psalmonis.rds')
+saving <- file.path(getwd(),'tabla_targetspsalmonis.rds')
+```
+
+```{r}
+RDS[[1]] %>% pData
+titulos                 <- data.frame()
+list_con_eset_filtrados <- list()
+RDS<- readRDS(pth)
+b <- RDS %>% names
+for(i in 1:length(b)) {
+  if  (b[i] == "GSE1012"| b[i]== "GSE1031"){
+     RDS[[i]]  -> mi.gse; pData(mi.gse) %>%filter(str_detect(source_name_ch1,'(?i)Non-infected|Piscirickettsia') & str_detect(source_name_ch2,'(?i)Non-infected|(?i)Piscirickettsia')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado  
+    
+  else if (b[i]=="GSE26984"){
+    RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title, '21dpi|1dpi')) %>%rownames() %>% mi.gse[, .] -> un_eset_filtrado
+    
+  else if (b[i] == "GSE19630"){
+       RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'16j|7j')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado
+  } 
+    }
+    
+  } 
+  }     
+
+RDS$GSE1012 %>% pData() #p. salmonis Atlantic Salmon
+RDS$GSE1031 %>% pData() #p. salmonis Atlantic Salmon 
+RDS$GSE19630 %>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE26984 %>% pData() %>% select(matches("organism_ch*"))
+RDS$`GSE28843-GPL10679` %>% pData() %>% select(matches("organism_ch*"))
+RDS$`GSE28843-GPL10705` %>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE28357 %>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE36072%>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE36332%>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE43255%>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE101695%>% pData() %>% select(matches("organism_ch*")) #Salmo trutta
+RDS$GSE140756%>% pData() %>% select(matches("organism_ch*"))
+
+```
+
+
