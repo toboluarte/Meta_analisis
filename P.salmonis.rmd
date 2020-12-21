@@ -19,39 +19,216 @@ saving <- file.path(getwd(),'tabla_targetspsalmonis.rds')
 ```
 
 ```{r}
-RDS[[1]] %>% pData
 titulos                 <- data.frame()
 list_con_eset_filtrados <- list()
 RDS<- readRDS(pth)
 b <- RDS %>% names
 for(i in 1:length(b)) {
   if  (b[i] == "GSE1012"| b[i]== "GSE1031"){
-     RDS[[i]]  -> mi.gse; pData(mi.gse) %>%filter(str_detect(source_name_ch1,'(?i)Non-infected|Piscirickettsia') & str_detect(source_name_ch2,'(?i)Non-infected|(?i)Piscirickettsia')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado  
-    
-  else if (b[i]=="GSE26984"){
-    RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title, '21dpi|1dpi')) %>%rownames() %>% mi.gse[, .] -> un_eset_filtrado
-    
-  else if (b[i] == "GSE19630"){
-       RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title,'16j|7j')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado
-  } 
+     RDS[[i]]  -> mi.gse;
+    pData(mi.gse) %>% filter(str_detect(source_name_ch1,'(?i)Non-infected|Piscirickettsia') & str_detect(source_name_ch2,'(?i)Non-infected|(?i)Piscirickettsia')) %>% rownames %>% mi.gse[, .] ->               un_eset_filtrado
     }
-    
+  else if (b[i] == "GSE43255"){
+       RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title, 'High')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado
   } 
-  }     
+  titulos <- bind_rows(titulos,pData(un_eset_filtrado) )
 
+  list_con_eset_filtrados[[b[i]]] <- un_eset_filtrado
+}
+list_con_eset_filtrados %>% map(pData) %>% enframe%>%  unnest %>% 
+                     dplyr::select(matches('^name$|title|geo|source|characteristics|organism')) -> GSMs_filtrados
+```
+
+```{r}
+list_con_eset_filtrados$GSE1031 -> un_estudio 
+un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% select(matches('geo')|matches('cy')) -> GSE1031 
+
+list_con_eset_filtrados$GSE1012 -> un_estudio 
+un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'(?i).*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'(?i).*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) -> GSE1012
+
+list_con_eset_filtrados$GSE43255 -> un_estudio 
+un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1) %>%unite("Cy5", source_name_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*challenged.*', 'infected')) %>% mutate_at("Cy5",~str_replace(.,'.*control.*', 'control')) %>% select(matches('geo')|matches('cy'))->GSE43255
+```
+
+
+
+```{r}
+## estudios que tienen match con Salmo salar
 RDS$GSE1012 %>% pData() #p. salmonis Atlantic Salmon
 RDS$GSE1031 %>% pData() #p. salmonis Atlantic Salmon 
-RDS$GSE19630 %>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE26984 %>% pData() %>% select(matches("organism_ch*"))
-RDS$`GSE28843-GPL10679` %>% pData() %>% select(matches("organism_ch*"))
-RDS$`GSE28843-GPL10705` %>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE28357 %>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE36072%>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE36332%>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE43255%>% pData() %>% select(matches("organism_ch*"))
-RDS$GSE101695%>% pData() %>% select(matches("organism_ch*")) #Salmo trutta
-RDS$GSE140756%>% pData() %>% select(matches("organism_ch*"))
+RDS$GSE43255%>% pData() %>% select(matches("organism_ch*")) # p. salmonis, PAPER PROFE
+
+
+
+
+### podria ser utilizados para enrobustecer el grupo Control
+RDS$GSE19630 %>% pData() %>% select(matches("organism_ch*")) #Anemia virus ISAV
+RDS$GSE26984 %>% pData() %>% select(matches("organism_ch*")) # challenged with l. salmonis
+RDS$`GSE28843-GPL10679` %>% pData() %>% select(matches("organism_ch*")) # piscine myocarditis virus
+RDS$`GSE28843-GPL10705` %>% pData() %>% select(matches("organism_ch*"))#  piscine myocarditis virus
+RDS$GSE28357 %>% pData() %>% select(matches("organism_ch*")) # Isav exposure
+RDS$GSE36072%>% pData() %>% select(matches("organism_ch*")) #parasitic copepod Lepeophtheirus salmonis
+RDS$GSE36332%>% pData() %>% select(matches("organism_ch*"))# Y. ruckeri
+RDS$GSE101695%>% pData() %>% select(matches("organism_ch*")) #Salmo trutta L. garvieae-infected
+RDS$GSE140756%>% pData() %>% select(matches("organism_ch*")) #Chalimus 
 
 ```
+
+```{r}
+llist(GSE1012,GSE1031,GSE43255) -> mis.targets
+
+saveRDS(mis.targets, path)
+mis.targets <- readRDS(path)
+```
+
+```{r}
+get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
+                                      function(un_codigo_gsm){ try(
+                                        GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
+                                          rownames}) %>% unlist}
+purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
+mis.targets %<>% enframe %>% unnest 
+purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> hola
+
+
+hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> hola2
+
+
+inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
+full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
+identical(target_final$name.x, target_final$name.y) # just a check
+saving <- file.path(getwd(),'tabla_targets.rds')
+saveRDS(target_final, saving)
+
+```
+
+```{r}
+str_extract(target_final$value, "[.]([a-z])*[.]") %>% unique() -> Extensiones
+Extensiones
+```
+
+```{r}
+archivos_tif <- list()
+archivos_gpr <- list()
+archivos_ftr <- list()
+archivos_txt <- list()
+archivos_xml <- list()
+archivos_tsv <- list()
+gsms_ftr <- list()
+gsms_txt <- list()
+gsms_gpr <- list()
+gsms_xml <- list()
+gsms_tif <- list()
+gsms_tsv <- list()
+
+for (i in 1:length(target_final$value)){
+  
+  if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tif." ){
+    
+    archivos_tif <-append(archivos_tif,target_final$value[i])
+     gsms_tif <- append(gsms_tif, str_extract(target_final$value[i], "GSM\\d+") )
+    }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".ftr." ){
+    archivos_ftr <-append(archivos_ftr,target_final$value[i])
+    gsms_ftr <- append(gsms_ftr, str_extract(target_final$value[i], "GSM\\d+") )
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".xml." ){
+    archivos_xml <-append(archivos_xml,target_final$value[i])
+    gsms_xml <- append(gsms_xml, str_extract(target_final$value[i], "GSM\\d+") )
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".txt." ){
+    archivos_txt <-append(archivos_txt,target_final$value[i])
+    gsms_txt <- append(gsms_txt, str_extract(target_final$value[i], "GSM\\d+") )
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".gpr." ) {
+    archivos_gpr <-append(archivos_gpr,target_final$value[i])
+    gsms_gpr <- append(gsms_gpr, str_extract(target_final$value[i], "GSM\\d+") )
+  }
+  else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tsv.") {
+    archivos_tsv <-append(archivos_tsv,target_final$value[i])
+    gsms_tsv<- append(gsms_tsv, str_extract(target_final$value[i], "GSM\\d+") )
+  }
+}
+archivos_tif %>%  unlist() -> archivos_tif
+archivos_gpr  %>% unlist() -> archivos_gpr
+archivos_ftr  %>% unlist()  -> archivos_ftr
+archivos_txt  %>% unlist()  -> archivos_txt
+archivos_xml  %>% unlist()  -> archivos_xml
+archivos_tsv  %>% unlist()  -> archivos_tsv
+
+
+gsms_ftr %>%  unlist() %>% unique()-> gsms_ftr
+gsms_txt %>%  unlist() %>% unique() -> gsms_txt
+gsms_gpr %>%  unlist() %>% unique() -> gsms_gpr
+gsms_tif %>%  unlist() %>% unique() -> gsms_tif
+gsms_xml %>%  unlist() %>% unique() -> gsms_xml
+gsms_tsv%>%  unlist() %>% unique() -> gsms_tsv
+
+```
+
+```{r}
+##                             Descomprimir                                   ##
+for(i in 1:length(archivos_ftr)){
+                              gunzip(archivos_ftr[i], remove = F, overwrite = T)
+                             
+}
+for(i in 1:length(archivos_gpr)){
+    gunzip(archivos_gpr[i], remove = F, overwrite = T)
+     list.files(archivos_gpr[i]) ->archivos_gpr
+    }
+                          
+                             
+for(i in 1:length(archivos_tif)){
+                              gunzip(archivos_tif[i], remove = F, overwrite = T)}
+for(i in 1:length(archivos_txt)){
+                              gunzip(archivos_txt[i], remove = F, overwrite = T)}
+                             
+for(i in 1:length(archivos_xml)){
+                              gunzip(archivos_xml[i], remove = F, overwrite = T)}
+                             
+for(i in 1:length(archivos_tsv)){
+                              gunzip(archivos_tsv[i], remove = F, overwrite = T)}
+
+                             
+
+                             
+#rutas a los archivos, creo que no es un paso util puesto que el str_extract_all no esta funcionando
+list.files(archivos_gpr) %>% str_extract_all('.*gpr$') %>% unlist() %>% paste0(archivos_gpr, .)  -> path.archivos_gpr 
+list.files(archivos_ftr) %>% str_extract_all('.*ftr$') %>% unlist() %>% paste0(archivos_ftr, .) -> path.archivos_ftr
+list.files(archivos_tsv) %>% str_extract_all('.*tsv$') %>% unlist() %>% paste0(archivos_tsv, .) -> path.archivos_tsv
+list.files(archivos_txt) %>% str_extract_all('.*txt$') %>% unlist() %>% paste0(archivos_txt, .) -> path.archivos_txt
+list.files(archivos_xml) %>% str_extract_all('.*xml$') %>% unlist() %>% paste0(archivos_xml, .) -> path.archivos_xml
+list.files(archivos_tif) %>% str_extract_all('.*tif$') %>% unlist() %>% paste0(archivos_tif, .) -> path.archivos_tif
+
+```
+
+```{r}
+my.gpr.DFs <- list()
+my.tsv.DFs <- list()
+my.txt.DFs <- list()
+my.tif.DFs <- list()
+my.xml.DFs <- list()
+my.ftr.DFs <- list()
+
+
+for(i in 1:length(path.archivos_gpr)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- path.archivos_gpr[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.gpr.DFs[[sample.id]]
+                                  
+}
+```
+
+
+
+
 
 
