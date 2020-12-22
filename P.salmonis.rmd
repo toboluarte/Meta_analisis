@@ -120,7 +120,7 @@ gsms_gpr <- list()
 gsms_xml <- list()
 gsms_tif <- list()
 gsms_tsv <- list()
-
+##Todos los listas de gsms también son innecesarias 
 for (i in 1:length(target_final$value)){
   
   if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tif." ){
@@ -156,7 +156,7 @@ archivos_txt  %>% unlist()  -> archivos_txt
 archivos_xml  %>% unlist()  -> archivos_xml
 archivos_tsv  %>% unlist()  -> archivos_tsv
 
-
+#esto también es innecesario
 gsms_ftr %>%  unlist() %>% unique()-> gsms_ftr
 gsms_txt %>%  unlist() %>% unique() -> gsms_txt
 gsms_gpr %>%  unlist() %>% unique() -> gsms_gpr
@@ -173,8 +173,8 @@ for(i in 1:length(archivos_ftr)){
                              
 }
 for(i in 1:length(archivos_gpr)){
-    gunzip(archivos_gpr[i], remove = F, overwrite = T)
-     list.files(archivos_gpr[i]) ->archivos_gpr
+       gunzip(archivos_gpr[i], remove = F, overwrite = T)
+    
     }
                           
                              
@@ -193,12 +193,12 @@ for(i in 1:length(archivos_tsv)){
 
                              
 #rutas a los archivos, creo que no es un paso util puesto que el str_extract_all no esta funcionando
-list.files(archivos_gpr) %>% str_extract_all('.*gpr$') %>% unlist() %>% paste0(archivos_gpr, .)  -> path.archivos_gpr 
-list.files(archivos_ftr) %>% str_extract_all('.*ftr$') %>% unlist() %>% paste0(archivos_ftr, .) -> path.archivos_ftr
-list.files(archivos_tsv) %>% str_extract_all('.*tsv$') %>% unlist() %>% paste0(archivos_tsv, .) -> path.archivos_tsv
-list.files(archivos_txt) %>% str_extract_all('.*txt$') %>% unlist() %>% paste0(archivos_txt, .) -> path.archivos_txt
-list.files(archivos_xml) %>% str_extract_all('.*xml$') %>% unlist() %>% paste0(archivos_xml, .) -> path.archivos_xml
-list.files(archivos_tif) %>% str_extract_all('.*tif$') %>% unlist() %>% paste0(archivos_tif, .) -> path.archivos_tif
+#list.files(archivos_gpr) %>% str_extract_all('.*gpr$') %>% unlist() %>% paste0(archivos_gpr, .)  -> path.archivos_gpr 
+#list.files(archivos_ftr) %>% str_extract_all('.*ftr$') %>% unlist() %>% paste0(archivos_ftr, .) -> path.archivos_ftr
+#list.files(archivos_tsv) %>% str_extract_all('.*tsv$') %>% unlist() %>% paste0(archivos_tsv, .) -> path.archivos_tsv
+#list.files(archivos_txt) %>% str_extract_all('.*txt$') %>% unlist() %>% paste0(archivos_txt, .) -> path.archivos_txt
+#list.files(archivos_xml) %>% str_extract_all('.*xml$') %>% unlist() %>% paste0(archivos_xml, .) -> path.archivos_xml
+#list.files(archivos_tif) %>% str_extract_all('.*tif$') %>% unlist() %>% paste0(archivos_tif, .) -> path.archivos_tif
 
 ```
 
@@ -210,11 +210,41 @@ my.tif.DFs <- list()
 my.xml.DFs <- list()
 my.ftr.DFs <- list()
 
+#Esto no va a funcionar para la lectura de una imagen "TIF"
+for(i in 1:length(path.archivos_tif)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_tif[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.tif.DFs[[sample.id]]
+                                  
+}
+
+for(i in 1:length(path.archivos_txt)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_txt[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.txt.DFs[[sample.id]]
+                                  
+}
 
 for(i in 1:length(path.archivos_gpr)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
-                                  a.file    <- path.archivos_gpr[i]
+                                  a.file    <- archivos_gpr[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
                                   while(!str_detect(input, regex('block', ignore_case = T))){
@@ -225,6 +255,52 @@ for(i in 1:length(path.archivos_gpr)){
                                 as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.gpr.DFs[[sample.id]]
                                   
 }
+
+for(i in 1:length(path.archivos_xml)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_xml[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.xml.DFs[[sample.id]]
+                                  
+}
+
+for(i in 1:length(path.archivos_ftr)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_ftr[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.ftr.DFs[[sample.id]]
+                                  
+}
+
+for(i in 1:length(path.archivos_tsv)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_tsv[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.tsv.DFs[[sample.id]]
+                                  
+}
+
 ```
 
 
