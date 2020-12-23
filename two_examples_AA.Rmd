@@ -1,0 +1,741 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r message=FALSE, warning=FALSE}
+#setwd("~/Documentos/Taller_R_2020")
+library(GEOquery)
+
+
+getGEOSuppFiles('GSE42491')
+
+#saveRDS(my.gse.data, "GSE43255.rds")
+```
+
+```{r message=FALSE, warning=FALSE}
+library(Biobase)
+library(BiocGenerics)
+#setwd("~/Documentos/Taller_R_2020")
+#my.gse.data <- readRDS("GSE43255.rds")
+#my.gse.data
+```
+
+```{r message=FALSE, warning=FALSE}
+library(GEOquery)
+library(Biobase)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+#c(5,8,33)  %>% as.matrix() %>% as_tibble()
+#my.gse.data[[1]] %>% pData() 
+my.gse.data[[1]] %>% fData() %>% select('ID','SEQUENCE')          -> id.sequence
+my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.labels
+```
+**Get raw data files**
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+library(stringr)
+
+
+
+my.folder.raw      <- "/home/alejandro/Meta_analisis/GSE42491"
+
+all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
+all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*txt$', negate = F)]
+#all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*AA.*', negate = T)]
+study              <- unlist(str_extract_all(my.folder.raw, 'GS[aA-zZ]+\\d+.*'))
+all.raw.files
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+archivos_txt <- all.raw.files
+path.archivos_txt <- all.raw.files
+my.txt.DFs <- list()
+
+for(i in 1:length(path.archivos_txt)){
+                                  line      <- 0L
+                                  input     <- 'string_inicial'
+                                  a.file    <- archivos_txt[i]
+                                  sample.id <- str_extract(a.file, 'GSM\\d+')
+                                  #leemos linea por linea hasta encontrar la regex 
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
+                                       line  <- line + 1L
+                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
+                                       }
+                                  
+                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.txt.DFs[[sample.id]]}
+```
+## Nombres de las columnas
+red: 633 (o 6\\d\\d)
+green: 543 (o 5\\d\\d)
+F: forward
+B: background
+________________________________________________________________________
+en .gpr                 en .txt  
+un tipo de col:       otro tipo de col:
+(^F6\\d\\d.*Mean$)     = ^rMeanSignal$       -> forward red mean
+(^F5\\d\\d.*Mean$)     = ^gMeanSignal$       -> forward green mean
+(^B6\\d\\d.*Median$)   = ^rBGMedianSignal$   -> background red median
+(^B5\\d\\d.*Median$)   = ^gBGMedianSignal$   -> background green median
+## 
+
+Veamos las columnas de las DFs en my.txt.DFs
+```{r}
+#chequeo que están las cuatro columnas que necesitamos
+#Chequear que hayan exponenciales, subínides ni superíndices.
+my.txt.DFs[1][[1]] %>% colnames() %>% str_extract_all('^rMeanSignal$|^gMeanSignal$|^rBGMedianSignal$|^gBGMedianSignal$') %>% unlist()
+```
+
+```{r}
+?trimws
+" gg gg " %>% str_replace_all("[:whitespace:]", "")
+
+```
+
+#Reescritura de espacios y caracteres raros. Todos los espacios se reemplazan por un punto y los caracteres raros se borran
+```{r message=FALSE, warning=FALSE}
+for(i in 1:length(names(my.txt.DFs))){
+  
+                                            a.data.study          <- my.txt.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.txt.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.txt.DFs[[i]]
+                                            
+                                            names(my.txt.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(all.raw.files, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+## Creación de la DF target con las rutas de los archivos Corrected
+```{r}
+my.rownames<-c('GSM1040892', 'GSM1040893', 'GSM1040894', 'GSM1040895', 'GSM1040896', 'GSM1040897', 'GSM1040898', 'GSM1040899','GSM1040900')
+
+Cy3 <- c('non_infected', 'non_infected', 'infected', 'non_infected', 'non_infected', 'infected', 'non_infected', 'non_infected', 'non_infected')
+
+Cy5 <- c('infected', 'infected', 'non_infected', 'infected', 'infected', 'non_infected', 'infected', 'infected', 'infected')
+
+data.frame(Cy3,Cy5)  %>% trqwe::set_rownames(my.rownames) -> my.target
+my.target
+#library(limma)
+#modelMatrix(my.target, ref = 'non_infected') -> design
+```
+
+```{r}
+list.files(path=my.folder.raw, recursive = F, full.names = T) %>% str_extract_all('.*_Corrected.*') %>% unlist() -> corrected_files_paths
+corrected_files_paths %>% str_extract('GSM\\d+') -> GSM_corrected_files_in_order
+
+data.frame(corrected_files_paths)  %>% trqwe::set_rownames(GSM_corrected_files_in_order)                    -> sample.names_files
+
+merge(my.target, sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+```
+
+## Desde ahora todo tiene que hacerse por estudio, código GSE.
+
+ver los nombres de las columnas de los archicos corrected
+```{r}
+#Chequeamos q todo está ok
+target.ok$corrected_files_paths[1] %>% read_delim(delim = "\t") %>% colnames() %>%  str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+```
+Debemos hacer una lista:
+
+R -> red forward mean or F6\\d\\d.Mean or rMeanSignal
+G -> green forward mean or F5\\d\\d.Mean or gMeanSignal
+Rb -> red background median or B6\\d\\d.Median or rBGMedianSignal
+Gb -> green background median or B5\\d\\d.Median or gBGMedianSignal
+
+```{r}
+#FileName
+
+colnames(target.ok) <-  c("Cy3" ,                  "Cy5" ,                  "FileName")
+```
+
+## Preprocess
+```{r message=FALSE, warning=FALSE}
+
+
+RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = "ProbeName")
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+
+```
+
+## Análisis de expresión diferencial
+```{r message=FALSE, warning=FALSE}
+library(limma)
+modelMatrix(target.ok, ref = 'non_infected') -> design
+```
+## Cada GSE debe tener una tabla de expresión diferencial (diffexp)
+
+```{r message=FALSE, warning=FALSE}
+fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'fefefe',
+    subtitle = 'efefe',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+*SEGUNDO EJEMPLO*
+
+```{r}
+my.rownames<-c('GSM1059459_11322', 'GSM1059459_11323', 'GSM1059459_11324', 'GSM1059459_11325', 'GSM1059460_11306', 'GSM1059460_11308', 'GSM1059460_11309', 'GSM1059460_11310','GSM1059461_11326', 'GSM1059461_11327', 'GSM1059461_11328', 'GSM1059461_11329', 'GSM1059462_10373', 'GSM1059462_10374','GSM1059462_10375', 'GSM1059462_10398', 'GSM1059463_11293', 'GSM1059463_11294', 'GSM1059463_11295', 'GSM1059463_11296', 'GSM1059464_11288', 'GSM1059464_11289', 'GSM1059464_11290', 'GSM1059464_11291')
+
+Cy3 <- c("non_infected","non_infected","infected","infected","non_infected","non_infected","infected","infected","non_infected","non_infected","infected","infected","non_infected","non_infected","infected","infected","non_infected","non_infected","infected","infected","non_infected","non_infected","infected","infected" )
+
+Cy5 <- c("infected",     "infected",    "non_infected", "non_infected", "infected",     "infected",     "non_infected", "non_infected","infected",     "infected",     "non_infected", "non_infected", "infected",     "infected",     "non_infected", "non_infected","infected",     "infected",     "non_infected", "non_infected", "infected",     "infected",     "non_infected", "non_infected")
+
+data.frame(Cy3,Cy5)  %>% trqwe::set_rownames(my.rownames) -> my.target_Cy3_Cy5
+```
+
+Estudio: GSE26981
+```{r message=FALSE, warning=FALSE}
+setwd("~/Documentos/Taller_R_2020")
+library(GEOquery)
+my.gse.data <- getGEO('GSE26981',GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE)
+saveRDS(my.gse.data, "GSE26981.rds")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(GEOquery)
+library(Biobase)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+
+
+my.gse.data <- readRDS("GSE26981.rds")
+
+
+my.gse.data[[1]] %>% fData() %>% select('NAME','SEQUENCE')  -> name.sequence
+my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.labels
+
+```
+**Get raw data files**
+```{r message=FALSE, warning=FALSE}
+library(stringr)
+
+my.folder.raw     <- list.files(path=getwd(), recursive = F, pattern = "GSE26981.*RAW$", full.names = T)
+all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
+all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*gz', negate = T)]
+all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*AA.*', negate = T)]
+study              <- unlist(str_extract_all(my.folder.raw, 'GS[A-Z]+\\d+_RAW'))
+all.raw.files
+```
+**Construir el target**
+
+```{r}
+my.rownames  <- rownames(channels.labels)
+Cy5          <- rep('infected',length(my.rownames))
+Cy3          <- rep('control',length(my.rownames))
+data.frame(Cy3,Cy5)  %>% trqwe::set_rownames(my.rownames) -> my.target_Cy3_Cy5
+library(limma)
+modelMatrix(my.target_Cy3_Cy5, ref = 'control') -> design
+```
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+all.raw.data.files <- list()$data.frame
+for(j in 1:length(all.raw.files)){
+                                line  <- 0L
+                                input <- "start"
+                                while( !str_detect(input, '.*(B|b)lock.*')) {
+                                line  <- line + 1L
+                                input <-  read_lines(file = all.raw.files[j], skip = line - 1L, n_max = 1L )
+                                }
+                                all.raw.data.files[[study]]$data[[unlist(str_extract_all(all.raw.files[j], 'GSM\\d+.*'))]] <- 
+                                as.data.frame(read_delim(all.raw.files[j], delim= "\t",  skip = line-1))
+}
+all.raw.data.files[[1]]$data[[1]] %>% names()
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+for(i in 1:length(names(all.raw.data.files[[study]]$data))){
+                                            a.data.study       <- all.raw.data.files[[study]]$data[[i]]
+                                            my.cols.bool       <- a.data.study %>% names() %>% str_detect("(F6\\d\\d.*Mean$)|(F5\\d\\d.*Mean$)|(B6\\d\\d.*Median$)|(B5\\d\\d.*Median$)|(Rgn R.*)")
+                                            my.cols.init.names <- names(a.data.study)[my.cols.bool]
+                                            my.cols.init.names %>% str_replace_all('.(?=(Median|Mean))|(Rgn R.*)', '.')  -> my.cols.names.ok
+                                            names(a.data.study)[my.cols.bool] <- my.cols.names.ok
+                                            all.raw.data.files[[study]]$data %>% names() %>% .[i] -> FileName
+                                            my.file.path <- all.raw.files[str_detect(all.raw.files, FileName)]
+                                            my.file.path %>% str_extract('.*(?=(.gpr))') %>% paste0('_AA.gpr')  -> new.FileName.path
+                                            write_delim(x=a.data.study, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+**Crear target final**
+
+```{r}
+list.files(path=my.folder.raw, recursive = F, full.names = T) %>% str_extract_all('.*_AA.gpr') %>% unlist() -> FileName
+
+FileName %>% str_extract('GSM\\d+') -> sample.names
+
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
+
+
+
+merge(my.target_Cy3_Cy5, sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+```
+
+Ver cuales muestras vamos a analizar:
+```{r}
+library(Biobase)
+#my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*15", ignore_case = TRUE))) 
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix()  %>% str_detect("day.*1,") %>% which() -> a.subset
+a.subset
+```
+Ver los nombres de las columnas del rojo y verde:
+```{r}
+my.cols.names.ok
+```
+Buscar la columna con los IDs:
+```{r}
+a.data.study
+```
+
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subset,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subset,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.01,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = '',
+    subtitle = '',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+Estudio GSE42491
+
+
+```{r message=FALSE, warning=FALSE}
+setwd("~/Documentos/Taller_R_2020")
+library(GEOquery)
+my.gse.data <- getGEO('GSE42491',GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE)
+saveRDS(my.gse.data, "GSE42491.rds")
+```
+```{r message=FALSE, warning=FALSE}
+setwd("~/Documentos/Taller_R_2020")
+my.gse.data <- readRDS("GSE42491.rds")
+```
+
+```{r message=FALSE, warning=FALSE}
+library(GEOquery)
+library(Biobase)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+#c(5,8,33)  %>% as.matrix() %>% as_tibble()
+#my.gse.data[[1]] %>% pData() 
+my.gse.data[[1]] %>% fData() %>% select('SPOT_ID','SEQUENCE')          -> id.sequence
+
+my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.labels
+```
+**Get raw data files**
+```{r message=FALSE, warning=FALSE}
+my.folder.raw       <- list.files(path=getwd(), recursive = F, pattern = "GSE42491.*RAW$", full.names = T)
+all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
+all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*gz', negate = T)]
+all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*AA.*', negate = T)]
+study              <- unlist(str_extract_all(my.folder.raw, 'GS[A-Z]+\\d+_RAW'))
+all.raw.files
+```
+GSM1040892 _US83800208_253652710005_S01_GE2-v5_10_Apr08_2_1.txt"
+GSM1040893 _US83800208_253652710005_S01_GE2-v5_10_Apr08_2_2.txt"
+GSM1040894 _US83800208_253652710005_S01_GE2-v5_10_Apr08_2_3.txt"
+GSM1040895 _US83800208_253652710006_S01_GE2-v5_10_Apr08_1_3.txt"
+GSM1040896 _US83800208_253652710006_S01_GE2-v5_10_Apr08_1_4.txt"
+GSM1040897 _US83800208_253652710006_S01_GE2-v5_10_Apr08_2_1.txt"
+GSM1040898 _US83800208_253652710006_S01_GE2-v5_10_Apr08_2_2.txt"
+GSM1040899 _US83800208_253652710006_S01_GE2-v5_10_Apr08_2_3.txt"
+GSM1040900 _US83800208_253652710006_S01_GE2-v5_10_Apr08_2_4.txt"
+
+                 Cy3         Cy5
+GSM1040892	non_infected	 infected		
+GSM1040893	non_infected	 infected		
+GSM1040894	infected   non_infected			
+GSM1040895	non_infected	 infected		
+GSM1040896	non_infected	 infected		
+GSM1040897	infected	 non_infected
+GSM1040898	non_infected	 infected		
+GSM1040899	non_infected	 infected		
+GSM1040900	non_infected	 infected
+
+
+
+```{r message=FALSE, warning=FALSE}
+all.raw.data.files <- list()$data.frame
+for(j in 1:length(all.raw.files)){
+                                  line <- 0L
+                                 input <- "start"
+                                while( !str_detect(input, '.*FEATURES.*')) {
+                                line <- line + 1L
+                                input <-  read_lines(file = all.raw.files[j], skip = line - 1L, n_max = 1L )
+                                }
+                                  all.raw.data.files[[study]]$data[[unlist(str_extract_all(all.raw.files[j], 'GSM\\d+.*'))]] <- 
+                                  as.data.frame(read_delim(all.raw.files[j], delim= "\t",  skip = line-1))
+}
+```
+```{r}
+all.raw.data.files[[1]]$data[[1]] %>% colnames()
+```
+red: 633 (o 6\\d\\d)
+green: 543 (o 5\\d\\d)
+(F633.*Mean$)   = rMeanSignal
+(F543.*Mean$)   = gMeanSignal
+(B633.*Median$) = rBGMedianSignal
+(B543.*Median$) = gBGMedianSignal
+
+gMeanSignal, rMeanSignal,  gBGMedianSignal, rBGMedianSignal
+
+
+Verificar si son .gpr o .txt
+
+```{r message=FALSE, warning=FALSE}
+for(i in 1:length(names(all.raw.data.files[[study]]$data))){
+  
+                                            a.data.study       <- all.raw.data.files[[study]]$data[[i]]
+                                            #my.cols.bool       <- a.data.study %>% names() %>% str_detect("(F633.*Mean$)|(F543.*Mean$)|(B633.*Median$)|(B543.*Median$)|(Rgn R.*)")
+                                            #my.cols.init.names <- names(a.data.study)[my.cols.bool]
+                                            #str_replace_all(my.cols.init.names,'.(?=(Median|Mean))|(Rgn R.*)', '.')  -> my.cols.names.ok
+                                            #names(a.data.study)[my.cols.bool] <- my.cols.names.ok
+                                            
+                                            all.raw.data.files[[study]]$data %>% names() %>% .[i] -> FileName
+                                            my.file.path <- all.raw.files[str_detect(all.raw.files, FileName)]
+                                            my.file.path %>% str_extract('.*(?=(.txt))') %>% paste0('_AA.txt')  -> new.FileName.path
+                                            write_delim(x=a.data.study, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+}
+a.data.study
+```
+
+```{r}
+list.files(path=my.folder.raw, recursive = F, full.names = T) %>% str_extract_all('.*_AA.txt') %>% unlist() -> FileName
+FileName %>% str_extract('GSM\\d+') -> sample.names
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
+merge(my.target, sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+```
+
+
+
+Ver cuales muestras vamos a analizar:
+```{r}
+library(Biobase)
+#my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*15", ignore_case = TRUE))) 
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix()  %>% str_detect("^12h") %>% which() -> a.subset
+a.subset
+```
+
+```{r}
+#No hacer nada
+```
+Buscar la columna con los IDs:
+```{r}
+a.data.study
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(limma)
+
+RG          <- read.maimages(target.ok[a.subset,], columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = 'GeneName')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm, design[a.subset,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+
+diffexp            <- data.frame(ID = diffexp$GeneName, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+diffexp
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = '',
+    subtitle = '',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+#######################################################################################
+***Orthologs***
+
+```{r message=FALSE, warning=FALSE}
+
+diffexp %>% subset(adj.P.Val < 0.05) -> diffexp.ok
+
+
+geo.sets$GSE43255@featureData@data %>% inner_join(diffexp.ok, by = c("GB_ACC" = "ID" )) -> feature.diffexp.ok
+
+#Si hay contig usarlo
+
+feature.diffexp.ok$SEQUENCE  %>% as.character()-> Probe.Sequences
+feature.diffexp.ok$GB_ACC    %>% as.character()-> Probe.IDs
+for(j in 1:length(Probe.IDs)){
+  seqinr::write.fasta(Probe.Sequences[j], Probe.IDs[j], 'FASTAs/GSE43255.fasta', open = "a", as.string = FALSE)
+}
+j
+
+```
+
+```{python, engine.path="/home/alejandro/anaconda3/bin/python3.7"}
+import subprocess
+
+cmds = ['pwd; \
+         cd /home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar; \
+         ls; \
+         blastn -query GSE43255.fasta  -db Ssalar.fna -num_threads 16 -task blastn -outfmt "6 qseqid sseqid evalue bitscore" -max_target_seqs 1 -out AA_GSE43255_output; \
+         ls']
+p = subprocess.Popen(cmds, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True, executable =  '/bin/bash')
+output, error = p.communicate()
+print(output)
+print(error)
+```
+
+```{r}
+library(stringr)
+library(rlist)
+library(dplyr)
+
+AA_blast_output <- read.delim('/home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar/AA_GSE43255_output', header=FALSE)
+subjects        <- AA_blast_output$V2
+str_extract_all(subjects, '[A-Z]+_\\d+') %>% list.rbind() %>% as.data.frame() -> new.cols
+rest0 = data_frame(AA_blast_output$V1,new.cols$V1,new.cols$V2 ,AA_blast_output$V3,AA_blast_output$V4)
+colnames(rest0)<-  c('Probe','Gene','mRNA','E-value','Bitscore')
+rest0 -> blast.output
+blast.output
+```
+
+```{r}
+library(readr)
+setwd("/home/alejandro/Documentos/OrthologGroups/Sonicparanoid/OUTPUT_default/runs/sonic_31720115845_default_8cpus_ml05_ow/ortholog_groups")
+ortholog_groups                    <- read_tsv("ortholog_groups.tsv")
+flat.ortholog_groups               <- read_tsv("flat.ortholog_groups.tsv")
+not_assigned_genes.ortholog_groups <- read_tsv("not_assigned_genes.ortholog_groups.tsv")
+ortholog_counts_per_species.stats  <- read_tsv("ortholog_counts_per_species.stats.tsv")
+overall.stats                      <- read_tsv("overall.stats.tsv")
+single_copy_groups                 <- read_tsv("single-copy_groups.tsv")
+species_coverages_in_groups.stats  <- read_tsv("species_coverages_in_groups.stats.tsv")
+overall.stats %>% select(`info/species`, total)
+ortholog_counts_per_species.stats
+```
+```{r}
+library(biomaRt)
+ensembl <- useMart("ensembl")
+#searchDatasets(mart = ensembl, pattern = "salar")
+Sa.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+#listAttributes(Sa.ensembl)
+```
+```{r}
+library(biomaRt)
+mRNA      =   blast.output$mRNA
+my.refseq_peptide_predicted= 
+  getBM(attributes=c('refseq_mrna_predicted','refseq_peptide_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Sa.ensembl)
+my.refseq_peptide_predicted %>% unique() -> my.refseq_peptide_predicted
+```
+
+```{r}
+library(stringr)
+library(rlist)
+library(dplyr)
+ortholog_groups$Salmo_salar_refseq.faa   -> test
+str_extract_all(test, '[A-Z]+_\\d+')     -> test2 
+```
+
+```{r}
+
+#my.element <-  my.refseq_peptide_predicted$refseq_peptide_predicted[1]
+
+get.mRNA.orthologs <-  function(my.element){
+  ortholog_groups[which(grepl(my.element, test2)),]    -> df0
+  df0['mRNA'] = my.refseq_peptide_predicted %>% filter(refseq_peptide_predicted ==my.element) %>% .[1,1]
+  return(df0)
+}
+
+my.vector <-  my.refseq_peptide_predicted$refseq_peptide_predicted  %>% unique()
+purrr::map(my.vector, get.mRNA.orthologs) %>% dplyr::bind_rows()-> df1 
+
+df1 %>% dplyr::distinct()-> df2
+
+df2$
+```
+
+
+```{r}
+library(tidyverse)
+mRNA_refseq_peptide =  inner_join(my.refseq_peptide_predicted,df2, by = c("refseq_mrna_predicted" = "mRNA")) %>% distinct()
+mRNA_refseq_peptide
+```
+```{r}
+library(tidyverse)
+blast.output_refseq_peptide_predicted =  inner_join(blast.output,mRNA_refseq_peptide, by = c("mRNA" = "refseq_mrna_predicted"))
+blast.output_refseq_peptide_predicted
+```
+```{r}
+final_annotation0 =  aggregate(blast.output_refseq_peptide_predicted, by=list(aggregated = blast.output_refseq_peptide_predicted$Probe), FUN=unique);
+
+final_annotation1 <- data.frame(
+  Probe    = final_annotation0$Probe, 
+  mRNA     = final_annotation0$mRNA, 
+  group_id = final_annotation0$group_id %>% as.character())
+colnames(final_annotation1) <- c('GB_ACC','mRNA','Orthology group')
+rownames(final_annotation1)  <- final_annotation1$GB_ACC
+final_annotation1
+```
+```{r}
+geo.sets$GSE43255@featureData@data -> my.feature.table
+inner_join(final_annotation1, my.feature.table) -> anotated_feature_table
+anotated_feature_table
+#anotated_feature_table %>% tail(50)
+```
+```{r}
+library(stringi)
+library(dplyr)
+#anotated_feature_table$ID %>% as.character()  %>% str_extract('(?<=af_sb_g).*(?=\\.)') #%>% na.omit() %>% stri_remove_empty()
+anotated_feature_table$ID %>% str_replace(pattern = 'af_sb_', replacement='') %>% tolower()-> anotated_feature_table$ID # %>% str_replace(pattern = '(?<=\\.).*', replacement='') -> 
+anotated_feature_table
+```
+```{r}
+diffexp$ID %>%  tolower()->diffexp$ID
+anotated_feature_table$GB_ACC  %>% tolower()->anotated_feature_table$GB_ACC 
+
+final0 <- inner_join(diffexp, anotated_feature_table,by= c("ID"="GB_ACC"))
+final0
+```
+
+```{r fig.height=7, fig.width=15, message=FALSE, warning=FALSE}
+library(EnhancedVolcano)
+EnhancedVolcano(final0,
+    lab = final0$`Orthology group`,
+    selectLab = NULL,
+    boxedLabels = T,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.01,
+    FCcutoff = 2.5,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = T,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'Family 1-4',
+    subtitle = 'GSM1059459_11322, GSM1059459_11323, GSM1059459_11324 and GSM1059459_11325',
+    ylim = c(0, 6)) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
