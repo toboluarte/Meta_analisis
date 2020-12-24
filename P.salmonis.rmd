@@ -167,7 +167,7 @@ gsms_tsv%>%  unlist() %>% unique() -> gsms_tsv
 ```
 
 ```{r}
-##                             Descomprimir                                   ##
+##Descomprimir, debemos correr sólo los formatos que existen en los estudios, de lo contrario arrojará error
 for(i in 1:length(archivos_ftr)){
                               gunzip(archivos_ftr[i], remove = F, overwrite = T)
                              
@@ -191,14 +191,7 @@ for(i in 1:length(archivos_tsv)){
 
                              
 
-                             
-#rutas a los archivos, creo que no es un paso util puesto que el str_extract_all no esta funcionando
-#list.files(archivos_gpr) %>% str_extract_all('.*gpr$') %>% unlist() %>% paste0(archivos_gpr, .)  -> path.archivos_gpr 
-#list.files(archivos_ftr) %>% str_extract_all('.*ftr$') %>% unlist() %>% paste0(archivos_ftr, .) -> path.archivos_ftr
-#list.files(archivos_tsv) %>% str_extract_all('.*tsv$') %>% unlist() %>% paste0(archivos_tsv, .) -> path.archivos_tsv
-#list.files(archivos_txt) %>% str_extract_all('.*txt$') %>% unlist() %>% paste0(archivos_txt, .) -> path.archivos_txt
-#list.files(archivos_xml) %>% str_extract_all('.*xml$') %>% unlist() %>% paste0(archivos_xml, .) -> path.archivos_xml
-#list.files(archivos_tif) %>% str_extract_all('.*tif$') %>% unlist() %>% paste0(archivos_tif, .) -> path.archivos_tif
+                          
 
 ```
 
@@ -211,13 +204,13 @@ my.xml.DFs <- list()
 my.ftr.DFs <- list()
 
 #Esto no va a funcionar para la lectura de una imagen "TIF"
-for(i in 1:length(path.archivos_tif)){
+for(i in 1:length(archivos_tif)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_tif[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -226,13 +219,13 @@ for(i in 1:length(path.archivos_tif)){
                                   
 }
 
-for(i in 1:length(path.archivos_txt)){
+for(i in 1:length(archivos_txt)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_txt[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -241,13 +234,13 @@ for(i in 1:length(path.archivos_txt)){
                                   
 }
 
-for(i in 1:length(path.archivos_gpr)){
+for(i in 1:length(archivos_gpr)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_gpr[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -256,13 +249,13 @@ for(i in 1:length(path.archivos_gpr)){
                                   
 }
 
-for(i in 1:length(path.archivos_xml)){
+for(i in 1:length(archivos_xml)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_xml[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -271,13 +264,13 @@ for(i in 1:length(path.archivos_xml)){
                                   
 }
 
-for(i in 1:length(path.archivos_ftr)){
+for(i in 1:length(archivos_ftr)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_ftr[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -286,13 +279,13 @@ for(i in 1:length(path.archivos_ftr)){
                                   
 }
 
-for(i in 1:length(path.archivos_tsv)){
+for(i in 1:length(archivos_tsv)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
                                   a.file    <- archivos_tsv[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
@@ -302,6 +295,200 @@ for(i in 1:length(path.archivos_tsv)){
 }
 
 ```
+Debemos hacer una lista:
+
+R -> red forward mean or F6\\d\\d.Mean or rMeanSignal
+G -> green forward mean or F5\\d\\d.Mean or gMeanSignal
+Rb -> red background median or B6\\d\\d.Median or rBGMedianSignal
+Gb -> green background median or B5\\d\\d.Median or gBGMedianSignal
+## Nombres de las columnas
+red: 633 (o 6\\d\\d)
+green: 543 (o 5\\d\\d)
+F: forward
+B: background
+________________________________________________________________________
+en .gpr                 en .txt  
+un tipo de col:       otro tipo de col:
+(^F6\\d\\d.*Mean$)     = ^rMeanSignal$       -> forward red mean
+(^F5\\d\\d.*Mean$)     = ^gMeanSignal$       -> forward green mean
+(^B6\\d\\d.*Median$)   = ^rBGMedianSignal$   -> background red median
+(^B5\\d\\d.*Median$)   = ^gBGMedianSignal$   -> background green median
+## 
+
+```{r}
+#chequeo que están las cuatro columnas que necesitamos
+#Chequear que hayan exponenciales, subínides ni superíndices.
+my.gpr.DFs[[1]] %>% colnames() %>% str_extract_all('^rMeanSignal$|^gMeanSignal$|^rBGMedianSignal$|^gBGMedianSignal$') %>% unlist()
+```
+
+```{r}
+for(i in 1:length(names(my.txt.DFs))){
+  
+                                            a.data.study          <- my.txt.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.txt.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.txt.DFs[[i]]
+                                            
+                                            names(my.txt.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_txt, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+```{r}
+### For GPR files
+
+for(i in 1:length(names(my.gpr.DFs))){
+  
+                                            a.data.study          <- my.gpr.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.gpr.DFs[[i]]
+                                            
+                                            names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
+                                            
+                                            append(new.FileName.path,str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr")) -> new.FileName.path
+                                             write_delim(DF_ok, path= new.FileName.path[i], delim= '\t', na = "NA", append = FALSE)
+                                             
+                                            append(GSM_corrected_files_in_order, new.FileName.path[i] %>% str_extract('GSM\\d+'))  -> GSM_corrected_files_in_order
+                                           
+}
+
+list.files(path=new.FileName.path, recursive = F, full.names = T) %>% str_extract_all('.*_Corrected.gpr$') %>% unlist() -> FileName
+FileName %>% str_extract('GSM\\d+') -> sample.names
+
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
+
+for(i in 1:length(mis.targets)){
+merge(mis.targets[i], sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+}  
+  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = "ProbeName")
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+modelMatrix(target.ok, ref = 'non_infected') -> design
+  
+
+```
+
+```{r}
+for(i in 1:length(names(my.tsv.DFs))){
+  
+                                            a.data.study          <- my.tsv.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.tsv.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.tsv.DFs[[i]]
+                                            
+                                            names(my.tsv.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_tsv, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+```{r}
+for(i in 1:length(names(my.fpr.DFs))){
+  
+                                            a.data.study          <- my.fpr.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.fpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.fpr.DFs[[i]]
+                                            
+                                            names(my.fpr.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_fpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+```{r}
+### Lo dejaré porsiacaso, pero no tiene sentido alguno
+for(i in 1:length(names(my.tif.DFs))){
+  
+                                            a.data.study          <- my.tif.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.tif.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.tif.DFs[[i]]
+                                            
+                                            names(my.tif.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_tif, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+```{r}
+for(i in 1:length(names(my.xml.DFs))){
+  
+                                            a.data.study          <- my.xml.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.xml.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.xml.DFs[[i]]
+                                            
+                                            names(my.xml.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(archivos_xml, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
+ 
+                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+                                            }
+```
+
+
+
+
+
 
 
 

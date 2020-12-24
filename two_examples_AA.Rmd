@@ -37,19 +37,6 @@ my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.la
 
 
 
-```{r message=FALSE, warning=FALSE}
-library(stringr)
-
-
-
-my.folder.raw      <- "/home/alejandro/Meta_analisis/GSE42491"
-
-all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
-all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*txt$', negate = F)]
-#all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*AA.*', negate = T)]
-study              <- unlist(str_extract_all(my.folder.raw, 'GS[aA-zZ]+\\d+.*'))
-all.raw.files
-```
 
 
 
@@ -261,7 +248,7 @@ my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.la
 ```{r message=FALSE, warning=FALSE}
 library(stringr)
 
-my.folder.raw     <- list.files(path=getwd(), recursive = F, pattern = "GSE26981.*RAW$", full.names = T)
+my.folder.raw     <- list.files(path=getwd(), recursive = F, pattern = "^GSE*$", full.names = T)
 all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
 all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*gz', negate = T)]
 all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*AA.*', negate = T)]
