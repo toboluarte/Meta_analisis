@@ -574,7 +574,7 @@ hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\
 
 inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
 full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
-identical(target_final$name.x, target_final$name.y)
+identical(target_final$name.x, target_final$name.y) # just a check
 saving <- file.path(getwd(),'tabla_targets.rds')
 saveRDS(target_final, saving)
 ```
