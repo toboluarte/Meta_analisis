@@ -2,12 +2,9 @@
 title: "P.salmonis"
 output: html_notebook
 ---
-
-
-
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA")
 libraries(librerias)
 ```
 
@@ -15,7 +12,7 @@ libraries(librerias)
 #Rutas de guardado y lectura
 pth <- file.path(getwd(),'mis_gse_data_1.rds')
 path <- file.path(getwd(), 'mis_target.psalmonis.rds')
-saving <- file.path(getwd(),'tabla_targetspsalmonis.rds')
+saving <- file.path(getwd(),'tabla_targets_p_salmonis.rds')
 ```
 
 ```{r}
@@ -82,38 +79,42 @@ mis.targets <- readRDS(path)
 ```
 
 ```{r}
+## En caso de no tener los archivos gsms en el directorio local
 get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
                                       function(un_codigo_gsm){ try(
                                         GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
                                           rownames}) %>% unlist}
 purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
 mis.targets %<>% enframe %>% unnest 
-purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> hola
-
-
-hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> hola2
-
-
-inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
-full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
-identical(target_final$name.x, target_final$name.y) # just a check
-saving <- file.path(getwd(),'tabla_targets.rds')
+purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> all_gsms
+all_gsms %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> all_gsms_final
+inner_join(mis.targets,all_gsms_final, by=c("geo_accession") ) -> target_final
+### En caso de tener los archivos en el directorio local
 saveRDS(target_final, saving)
+target_final <- readRDS(saving)
+#full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
+identical(target_final$name.x, target_final$name.y) # just a check
+
 
 ```
 
 ```{r}
+##Comparador para descompresiones ordenadas
+
 str_extract(target_final$value, "[.]([a-z])*[.]") %>% unique() -> Extensiones
-Extensiones
+all_extensions <- c(".tif.",".gpr.",".ftr.",".txt." ,".xml.", ".tsv." )
+
 ```
 
 ```{r}
+#Declaración de listas vacias
 archivos_tif <- list()
 archivos_gpr <- list()
 archivos_ftr <- list()
 archivos_txt <- list()
 archivos_xml <- list()
 archivos_tsv <- list()
+whole_files <- list()
 gsms_ftr <- list()
 gsms_txt <- list()
 gsms_gpr <- list()
@@ -127,27 +128,34 @@ for (i in 1:length(target_final$value)){
     
     archivos_tif <-append(archivos_tif,target_final$value[i])
      gsms_tif <- append(gsms_tif, str_extract(target_final$value[i], "GSM\\d+") )
+     whole_files <- append(whole_files, archivos_tif)
     }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".ftr." ){
     archivos_ftr <-append(archivos_ftr,target_final$value[i])
     gsms_ftr <- append(gsms_ftr, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_ftr)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".xml." ){
     archivos_xml <-append(archivos_xml,target_final$value[i])
     gsms_xml <- append(gsms_xml, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_xml)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".txt." ){
     archivos_txt <-append(archivos_txt,target_final$value[i])
     gsms_txt <- append(gsms_txt, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_txt)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".gpr." ) {
     archivos_gpr <-append(archivos_gpr,target_final$value[i])
     gsms_gpr <- append(gsms_gpr, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_gpr)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tsv.") {
     archivos_tsv <-append(archivos_tsv,target_final$value[i])
     gsms_tsv<- append(gsms_tsv, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_tsv)
   }
+  
 }
 archivos_tif %>%  unlist() -> archivos_tif
 archivos_gpr  %>% unlist() -> archivos_gpr
@@ -155,6 +163,8 @@ archivos_ftr  %>% unlist()  -> archivos_ftr
 archivos_txt  %>% unlist()  -> archivos_txt
 archivos_xml  %>% unlist()  -> archivos_xml
 archivos_tsv  %>% unlist()  -> archivos_tsv
+whole_files %>% unlist() %>% unique() -> whole_files
+
 
 #esto también es innecesario
 gsms_ftr %>%  unlist() %>% unique()-> gsms_ftr
@@ -163,35 +173,19 @@ gsms_gpr %>%  unlist() %>% unique() -> gsms_gpr
 gsms_tif %>%  unlist() %>% unique() -> gsms_tif
 gsms_xml %>%  unlist() %>% unique() -> gsms_xml
 gsms_tsv%>%  unlist() %>% unique() -> gsms_tsv
-
 ```
 
+
 ```{r}
-##Descomprimir, debemos correr sólo los formatos que existen en los estudios, de lo contrario arrojará error
-for(i in 1:length(archivos_ftr)){
-                              gunzip(archivos_ftr[i], remove = F, overwrite = T)
-                             
-}
-for(i in 1:length(archivos_gpr)){
-       gunzip(archivos_gpr[i], remove = F, overwrite = T)
-    
-    }
-                          
-                             
-for(i in 1:length(archivos_tif)){
-                              gunzip(archivos_tif[i], remove = F, overwrite = T)}
-for(i in 1:length(archivos_txt)){
-                              gunzip(archivos_txt[i], remove = F, overwrite = T)}
-                             
-for(i in 1:length(archivos_xml)){
-                              gunzip(archivos_xml[i], remove = F, overwrite = T)}
-                             
-for(i in 1:length(archivos_tsv)){
-                              gunzip(archivos_tsv[i], remove = F, overwrite = T)}
 
-                             
-
-                          
+unpack <- function(path){
+  gunzip(path, remove = F, overwrite = T)
+ }
+test <- Vectorize(unpack)
+st <-Sys.time()
+test(target_final$value)
+et <-Sys.time()
+print (et-st)
 
 ```
 
@@ -205,17 +199,7 @@ my.ftr.DFs <- list()
 
 #Esto no va a funcionar para la lectura de una imagen "TIF"
 for(i in 1:length(archivos_tif)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- archivos_tif[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.tif.DFs[[sample.id]]
+                                 print ("No voy a leer una imagen")
                                   
 }
 
@@ -233,14 +217,24 @@ for(i in 1:length(archivos_txt)){
                                 as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.txt.DFs[[sample.id]]
                                   
 }
+ola <- gsub('.gz', '',archivos_gpr) %>% unique()
 
-for(i in 1:length(archivos_gpr)){
+the_test <- ola[1]  
+
+elist <- ola
+loadGPR(the_test)
+Parsing <- function(file){
+  
+}
+plotArray(elist = elist, idx =3, data.type = "bg", log= TRUE, normalized = FALSE, aggregation = "min", colpal = "topo.colors" )
+ 
+for(i in 1:length(the_test)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
-                                  a.file    <- archivos_gpr[i]
+                                  a.file    <- the_test[i]
                                   sample.id <- str_extract(a.file, 'GSM\\d+')
                                   #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
+                                  while(!str_detect(input, regex('^(?i)Block', ignore_case = T))){
                                        line  <- line + 1L
                                        input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
                                        }
