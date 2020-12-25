@@ -1,0 +1,467 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r message=FALSE, warning=FALSE}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr")
+libraries(librerias)
+mis.codigos.gse <- c('GSE26981','GSE42491') #esto podria ser un argumento de terminal 
+my_getGEO <- function (codigo_gse){
+  getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data
+  return(my.gse.data)}
+map(mis.codigos.gse, my_getGEO)  -> mis_gse_data
+
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+setwd("~/RTesis/Tesis")
+library(GEOquery)
+#my.gse.data <- getGEO('GSE26981',GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE)
+#saveRDS(my.gse.data, "GSE26981.rds")
+```
+
+```{r message=FALSE, warning=FALSE}
+library(Biobase)
+library(BiocGenerics)
+setwd("~/RTesis/Tesis")
+my.gse.data <- readRDS("GSE26981.rds")
+my.gse.data
+```
+
+```{r message=FALSE, warning=FALSE}
+library(GEOquery)
+library(Biobase)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+#c(5,8,33)  %>% as.matrix() %>% as_tibble()
+#my.gse.data[[1]] %>% pData() 
+
+my.gse.data[[1]] %>% fData()  # para ver que selccionar, como esta escrito
+my.gse.data[[1]] %>% fData() %>% select('NAME','SEQUENCE')          -> name.sequence
+my.gse.data[[1]] %>% pData() %>% select(starts_with('label_ch'))  -> channels.labelsaaaa
+
+my.gse.data[[1]] %>% pData() %>% select(starts_with('source_name')) 
+```
+
+```{r message=FALSE, warning=FALSE}
+library(stringr)
+
+my.folder.raw      <- list.files(path=getwd(), recursive = F, pattern = "^GSE26981.*RAW$", full.names = T)
+
+all.raw.files      <- list.files(path=my.folder.raw, recursive = F, full.names = T)
+all.raw.files      <- all.raw.files[str_detect(all.raw.files,'.*gpr$', negate = F)]
+all.raw.files      <- all.raw.files[str_detect(all.raw.files, '.*JV.*', negate = T)]
+study              <- unlist(str_extract_all(my.folder.raw, 'GS[aA-zZ]+\\d+.*'))
+all.raw.files
+```
+
+GSM                    Day         Fish
+GSM664623.gpr"          1           1
+GSM664624.gpr"          1           2
+GSM664625.gpr"          1           3
+GSM664626.gpr"          1           4
+GSM664627.gpr"          3           1
+GSM664628.gpr"          3           2
+GSM664629.gpr"          3           3
+GSM664630.gpr"          3           4
+GSM664631.gpr"          5           1
+GSM664632.gpr"          5           2
+GSM664633.gpr"          5           3
+GSM664634.gpr"          5           4
+GSM664635.gpr"         10           1
+GSM664636.gpr"         10           2
+GSM664637.gpr"         10           3
+GSM664638.gpr"         10           4
+GSM664639.gpr"         15           1
+GSM664640.gpr"         15           2
+GSM664641.gpr"         15           3
+GSM664642.gpr"         15           4
+
+TARGET:
+
+my.rownames               Cy3              Cy5            FilePath
+___________________________________________________________________________
+                      non_infected       infected        ..._JV.gpr
+
+```{r}
+
+my.rownames <- rownames(channels.labels)
+
+
+Cy5 <- rep('infected',length(my.rownames))
+
+Cy3 <- rep('control',length(my.rownames))
+
+data.frame(Cy3,Cy5)  %>% trqwe::set_rownames(my.rownames) -> my.target_Cy3_Cy5
+library(limma)
+modelMatrix(my.target_Cy3_Cy5, ref = 'control') -> design
+```
+
+**Leer los .gpr**
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+all.raw.data.files <- list()$data.frame
+for(j in 1:length(all.raw.files)){
+                                  line <- 0L
+                                 input <- "start"
+                                while( !str_detect(input, '.*(B|b)lock.*')) {
+                                line <- line + 1L
+                                input <-  read_lines(file = all.raw.files[j], skip = line - 1L, n_max = 1L )
+                                }
+                                  all.raw.data.files[[study]]$data[[unlist(str_extract_all(all.raw.files[j], 'GSM\\d+.*'))]] <- 
+                                  as.data.frame(read_delim(all.raw.files[j], delim= "\t",  skip = line-1))
+}
+#str(all.raw.data.files) #para chequear
+all.raw.data.files[[1]]$data[[1]] %>% names() 
+```
+
+#dependerar de los nombres de columnas que se usaran eliminar espacios F633 o F543 o B633
+#str_detect("(F635.*Median$)|(F635.*Mean$)|(F635.*SD$)|(F635.*CV$)|(B635.*Median$)|(B635.*Mean$)|(B635.*SD$)|(B635.*CV$)|(F532.*Median$)|(F532.*Mean$)|(F532.*SD$)|(F532.*CV$)|(B532.*Median$)|(B532.*Mean$)|(B532.*SD$)|(B532.*CV$)|(%.*)")
+```{r message=FALSE, warning=FALSE}
+for(i in 1:length(names(all.raw.data.files[[study]]$data))){
+  
+                                            a.data.study       <- all.raw.data.files[[study]]$data[[i]]
+                                            my.cols.bool       <- a.data.study %>% names() %>% str_detect("(F6\\d\\d.*Mean$)|(F5\\d\\d.*Mean$)|(B6\\d\\d.*Median$)|(B5\\d\\d.*Median$)") 
+                                            my.cols.init.names <- names(a.data.study)[my.cols.bool]
+                                            my.cols.init.names%>% str_replace_all('.(?=(Median|Mean))','.')  -> my.cols.names.ok
+                                            
+                                            
+                                            names(a.data.study)[my.cols.bool] <- my.cols.names.ok
+                                            all.raw.data.files[[study]]$data %>% names() %>% .[i] -> FileName
+                                            my.file.path <- all.raw.files[str_detect(all.raw.files, FileName)]
+                                            my.file.path %>% str_extract('.*(?=(.gpr))') %>% paste0('_JV.gpr')  -> new.FileName.path
+                                            write_delim(x=a.data.study, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
+}
+my.cols.names.ok
+```
+
+
+```{r}
+list.files(path=my.folder.raw, recursive = F, full.names = T) %>% str_extract_all('.*_JV.gpr') %>% unlist() -> FileName
+FileName %>% str_extract('GSM\\d+') -> sample.names
+
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
+merge(my.target_Cy3_Cy5, sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+```
+
+Ver los nombrs de las columnas del rojo y verde
+```{r}
+my.cols.names.ok
+
+```
+Buscar la columna con los IDs:
+```{r}
+a.data.study
+```
+
+
+Muestras día 1
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*1,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*1,")%>% which() -> a.subsetd1
+a.subsetd1
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG1          <- read.maimages(target.ok[a.subsetd1,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG1.bc2      <-backgroundCorrect(RG1,method="normexp")
+
+RG1.bc2.norm <- normalizeWithinArrays(RG1.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG1.bc2.norm,design[a.subsetd1,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp1            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp1            <- data.frame(ID = diffexp1$ID, log2FC = diffexp1$logFC, adj.P.Val = diffexp1$adj.P.Val,  CI.L = diffexp1$CI.L, CI.R = diffexp1$CI.R)
+```
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp1,
+    lab = diffexp1$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 1',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+
+Muestras día 3
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*3,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*3,")%>% which() -> a.subsetd3
+a.subsetd3
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd3,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd3,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 3',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+Muestras día 5
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*5,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*5,")%>% which() -> a.subsetd5
+a.subsetd5
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd5,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd5,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 5',
+    ylim = c(0, 6)) 
+
+
+```
+
+Muestras día 10
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*10,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*10,")%>% which() -> a.subsetd10
+a.subsetd10
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd10,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd10,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 10',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+Muestras día 15
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("day.*15,", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("day.*15,")%>% which() -> a.subsetd15
+a.subsetd15
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subsetd15,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subsetd15,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'día 3',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
+
+TODO
+
+```{r}
+
+my.gse.data[[1]] %>% pData() %>% filter(str_detect(title, regex("Skin", ignore_case = TRUE))) 
+
+my.gse.data[[1]] %>% pData() %>% select('title') %>% as.matrix() %>% str_detect("Skin")%>% which() -> a.subset
+a.subset
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#a.subset    <- 1:4
+RG          <- read.maimages(target.ok[a.subset,],columns=list(R="F635.Mean",G="F532.Mean",Rb="B635.Median",Gb="B532.Median"), annotation = 'ID')
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+#En este caso la referencia son todos Cy3 (no-inf). Todos los inf son Cy5. Sin Dye-swap. Con dye-swap poner columna 'Dye', Cy3 control o referencia  (no-inf o ref-universal).
+fit.1  <- lmFit(RG.bc2.norm,design[a.subset,] %>% as.matrix() %>% trqwe::set_colnames(colnames(design)))
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = 'infected',confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp$ID, log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+```
+
+```{r fig.height=7, fig.width=15}
+library(EnhancedVolcano)
+EnhancedVolcano(diffexp,
+    lab = diffexp$ID,
+    selectLab = NULL,
+    x = 'log2FC',
+    y = 'adj.P.Val',
+    xlim = c(-6,6),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.0,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'GSE26981',
+    subtitle = 'Todo',
+    ylim = c(0, 6)) 
+
+#Cambiar los cutoffs para todas las familias
+```
