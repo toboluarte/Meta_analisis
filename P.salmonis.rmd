@@ -226,14 +226,14 @@ for(i in 1:length(names(my.gpr.DFs))){
                                                   
 }
 FileName<- FileName %>% unique()
-FileName %>% str_extract('GSM\\d+') %>% unique() -> sample.names
+FileName %>% str_extract('GSM\\d+') -> sample.names
 
 data.frame(FileName)  %>% trqwe::set_rownames(sample.names) -> sample.names_files
 
 for(i in 1:length(mis.targets)){
 merge(mis.targets[i], sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
 }  
-  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = "ProbeName")
+  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = c("ProbeName","Sequence"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
 RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
 modelMatrix(target.ok, ref = 'non_infected') -> design
