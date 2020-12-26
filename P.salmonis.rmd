@@ -185,42 +185,62 @@ test(target_final$value)
 ```
 
 ```{r}
-my.gpr.DFs <- list()
-my.tsv.DFs <- list()
-my.txt.DFs <- list()
-my.tif.DFs <- list()
-my.xml.DFs <- list()
-my.ftr.DFs <- list()
-
-
-for(i in 1:length(archivos_txt)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- archivos_txt[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.txt.DFs[[sample.id]]
-                                  
+### for GPR files
+extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
+parsing_from_match_to_end <- function(file_path){
+    as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+    return(out)
 }
-ola <- gsub('.gz', '',archivos_gpr) %>% unique()
-
-the_test <- ola[1]  
-
-
-parsing_from_match_to_end <- function(file_path, empty_list){
-  id <- str_extract(file_path, 'GSM\\d+')
-   as.data.frame(fread(file = file_path,sep = '\t', fill= TRUE, skip = 'Block')) -> empty_list[id]
-   
-
+baptism <- function(path){
+  id <-str_extract(path, 'GSM\\d+')
+  return(id)
+  
 }
-as.data.frame(fread(the_test,sep = '\t',skip = 'asd'))-> the_result
-parsing_from_match_to_end(the_test, my.gpr.DFs)
+z<- extracted_gpr %>% map_chr(~baptism(.))
+my.gpr.DFs <-map(extracted_gpr, parsing_from_match_to_end)
+names(my.gpr.DFs) <- z
 
+for(i in 1:length(names(my.gpr.DFs))){
+  
+                                            a.data.study          <- my.gpr.DFs[[i]]
+                                            #
+                                            my.cols.init.names    <- a.data.study %>% names() %>%
+                                            str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist
+                                            #
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            
+                                            colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                            DF_ok <- my.gpr.DFs[[i]]
+                                            
+                                            names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
+                                            
+                                            str_extract(extracted_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+                                              na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
+                                            
+                                            str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr") -> new.FileName.path
+                                   for (j in 1:length(new.FileName.path)){
+                                     write_delim(DF_ok, path= new.FileName.path[j], delim = "\t", na = "NA", append = FALSE)
+                                     
+                                   }                 
+                                    FileName <- append(FileName,new.FileName.path)
+                                                  
+}
+FileName<- FileName %>% unique()
+FileName %>% str_extract('GSM\\d+') %>% unique() -> sample.names
+
+data.frame(FileName)  %>% trqwe::set_rownames(sample.names) -> sample.names_files
+
+for(i in 1:length(mis.targets)){
+merge(mis.targets[i], sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
+}  
+  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = "ProbeName")
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+modelMatrix(target.ok, ref = 'non_infected') -> design
+```
+
+
+```{r}
 for(i in 1:length(the_test)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
@@ -235,7 +255,10 @@ for(i in 1:length(the_test)){
                                 as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.gpr.DFs[[sample.id]]
                                   
 }
+```
 
+
+```{r}
 for(i in 1:length(archivos_xml)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
@@ -250,7 +273,10 @@ for(i in 1:length(archivos_xml)){
                                 as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.xml.DFs[[sample.id]]
                                   
 }
+```
 
+
+```{r}
 for(i in 1:length(archivos_ftr)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
@@ -265,7 +291,10 @@ for(i in 1:length(archivos_ftr)){
                                 as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.ftr.DFs[[sample.id]]
                                   
 }
+```
 
+
+```{r}
 for(i in 1:length(archivos_tsv)){
                                   line      <- 0L
                                   input     <- 'string_inicial'
