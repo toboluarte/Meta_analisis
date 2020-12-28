@@ -10,30 +10,40 @@ libraries(librerias)
 
 ```{r}
 #Rutas de guardado y lectura
-pth <- file.path(getwd(),'mis_gse_data_1.rds')
-path <- file.path(getwd(), 'mis_target.psalmonis.rds')
-saving <- file.path(getwd(),'tabla_targets_p_salmonis.rds')
+pth <- file.path(getwd(), "mis_gse_data_1.rds")
+path <- file.path(getwd(), "mis_target.psalmonis.rds")
+saving <- file.path(getwd(), "tabla_targets_psalmonis.rds")
 ```
 
 ```{r}
-titulos                 <- data.frame()
+titulos <- data.frame()
 list_con_eset_filtrados <- list()
-RDS<- readRDS(pth)
-b <- RDS %>% names
-for(i in 1:length(b)) {
-  if  (b[i] == "GSE1012"| b[i]== "GSE1031"){
-     RDS[[i]]  -> mi.gse;
-    pData(mi.gse) %>% filter(str_detect(source_name_ch1,'(?i)Non-infected|Piscirickettsia') & str_detect(source_name_ch2,'(?i)Non-infected|(?i)Piscirickettsia')) %>% rownames %>% mi.gse[, .] ->               un_eset_filtrado
-    }
-  else if (b[i] == "GSE43255"){
-       RDS[[i]]  -> mi.gse; pData(mi.gse) %>% filter(str_detect(title, 'High')) %>% rownames %>% mi.gse[, .] -> un_eset_filtrado
-  } 
-  titulos <- bind_rows(titulos,pData(un_eset_filtrado) )
+RDS <- readRDS(pth)
+b <- RDS %>% names()
+for (i in 1:length(b)) {
+  if (b[i] == "GSE1012" | b[i] == "GSE1031") {
+    RDS[[i]] -> mi.gse
+    pData(mi.gse) %>%
+      filter(str_detect(source_name_ch1, "(?i)Non-infected|Piscirickettsia") & str_detect(source_name_ch2, "(?i)Non-infected|(?i)Piscirickettsia")) %>%
+      rownames() %>%
+      mi.gse[, .] -> un_eset_filtrado
+  }
+  else if (b[i] == "GSE43255") {
+    RDS[[i]] -> mi.gse
+    pData(mi.gse) %>%
+      filter(str_detect(title, "High")) %>%
+      rownames() %>%
+      mi.gse[, .] -> un_eset_filtrado
+  }
+  titulos <- bind_rows(titulos, pData(un_eset_filtrado))
 
   list_con_eset_filtrados[[b[i]]] <- un_eset_filtrado
 }
-list_con_eset_filtrados %>% map(pData) %>% enframe%>%  unnest %>% 
-                     dplyr::select(matches('^name$|title|geo|source|characteristics|organism')) -> GSMs_filtrados
+list_con_eset_filtrados %>%
+  map(pData) %>%
+  enframe() %>%
+  unnest() %>%
+  dplyr::select(matches("^name$|title|geo|source|characteristics|organism")) -> GSMs_filtrados
 ```
 
 ```{r}
@@ -81,9 +91,9 @@ mis.targets <- readRDS(path)
 ```{r}
 ## En caso de no tener los archivos gsms en el directorio local
 get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
-                                      function(un_codigo_gsm){ try(
-                                        GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
-                                          rownames}) %>% unlist}
+                                                  function(un_codigo_gsm){ try(
+                                                    GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
+                                                      rownames}) %>% unlist}
 purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
 mis.targets %<>% enframe %>% unnest 
 purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> all_gsms
@@ -188,8 +198,8 @@ test(target_final$value)
 
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
 parsing_from_match_to_end <- function(file_path){
-    as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
-    return(out)
+  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+  return(out)
 }
 baptism <- function(path){
   id <-str_extract(path, 'GSM\\d+')
@@ -202,44 +212,38 @@ names(my.gpr.DFs) <- z
 FileName <- list()
 
 for(i in 1:length(names(my.gpr.DFs))){
+  a.data.study <- my.gpr.DFs[[i]]
+  old.names <- a.data.study %>%
+    names() %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    unlist()
+  my.cols.init.names <- a.data.study %>%
+    names() %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    unlist() %>%
+    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')
+  my.gpr.DFs[[i]] %>%
+    setnames(., old = old.names, new = my.cols.init.names)
+  DF_ok <- my.gpr.DFs[[i]]
   
-                                            a.data.study          <- my.gpr.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')  -> my.cols.names.ok
-                                            
-                                           colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.gpr.DFs[[i]]
-                                            
-                                            names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(extracted_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr") -> new.FileName.path
-                                   for (j in 1:length(new.FileName.path)){
-                                     write_delim(DF_ok, path= new.FileName.path[j], delim = "\t", na = "NA", append = FALSE)
-                                    FileName <- append(FileName,new.FileName.path)  
-                                   }                 
-                                   
-                                                  
-}
-my.gpr.DFs
-```
-
-
-```{r}
+  names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
+  
+  str_extract(extracted_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+    na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
+  
+  str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr") -> new.FileName.path
+  for (j in 1:length(new.FileName.path)){
+    write_delim(DF_ok, path= new.FileName.path[j], delim = "\t", na = "NA", append = FALSE)
+    FileName <- append(FileName,new.FileName.path)  
+  }
+  
+  
+}                 
 FileName<- FileName %>% unique()
 FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
-```
-
-```{r}
-#separar por cada GSE, y loopear
 colnames(target.ok)[6] <- c("FileName")
 RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
@@ -247,11 +251,33 @@ RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
 modelMatrix(target.ok, ref = 'control') -> design
 my.gpr.DFs[1]
 
-fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix() %>% trqwe::set_colnames(design))
+fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
 
 fit2.1 <- eBayes(fit.1)
 diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
 diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+
+EnhancedVolcano(diffexp,
+                lab = diffexp$ID,
+                selectLab = NULL,
+                x = 'log2FC',
+                y = 'adj.P.Val',
+                xlim = c(-6,6),
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 0.01,
+                FCcutoff = 1.0,
+                pointSize = 1.0,
+                labSize = 3.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                drawConnectors = F,
+                widthConnectors = 0.2,
+                colConnectors = 'grey30',
+                title = '',
+                subtitle = '',
+                ylim = c(0, 6)) 
 ```
 
 ```{r}
