@@ -95,7 +95,6 @@ target_final <- readRDS(saving)
 #full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
 #identical(target_final$name.x, target_final$name.y) # just a check
 
-
 ```
 
 ```{r}
@@ -186,6 +185,7 @@ test(target_final$value)
 
 ```{r}
 ### for GPR files
+
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
 parsing_from_match_to_end <- function(file_path){
     as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
@@ -199,6 +199,7 @@ baptism <- function(path){
 z<- extracted_gpr %>% map_chr(~baptism(.))
 my.gpr.DFs <-map(extracted_gpr, parsing_from_match_to_end)
 names(my.gpr.DFs) <- z
+FileName <- list()
 
 for(i in 1:length(names(my.gpr.DFs))){
   
@@ -207,9 +208,9 @@ for(i in 1:length(names(my.gpr.DFs))){
                                             my.cols.init.names    <- a.data.study %>% names() %>%
                                             str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist
                                             #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
+                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')  -> my.cols.names.ok
                                             
-                                            colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
+                                           colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
                                             DF_ok <- my.gpr.DFs[[i]]
                                             
                                             names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
@@ -220,61 +221,38 @@ for(i in 1:length(names(my.gpr.DFs))){
                                             str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr") -> new.FileName.path
                                    for (j in 1:length(new.FileName.path)){
                                      write_delim(DF_ok, path= new.FileName.path[j], delim = "\t", na = "NA", append = FALSE)
-                                     
+                                    FileName <- append(FileName,new.FileName.path)  
                                    }                 
-                                    FileName <- append(FileName,new.FileName.path)
+                                   
                                                   
 }
+my.gpr.DFs
+```
+
+
+```{r}
 FileName<- FileName %>% unique()
 FileName %>% str_extract('GSM\\d+') -> sample.names
+sample.names_files <- cbind(row.names = sample.names,FileName)
+target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
+target.ok$value <- FileName %>% unlist()
+```
 
-data.frame(FileName)  %>% trqwe::set_rownames(sample.names) -> sample.names_files
-
-for(i in 1:length(mis.targets)){
-merge(mis.targets[i], sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
-}  
-  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = c("ProbeName","Sequence"))
+```{r}
+#separar por cada GSE, y loopear
+colnames(target.ok)[6] <- c("FileName")
+RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
 RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
-modelMatrix(target.ok, ref = 'non_infected') -> design
+modelMatrix(target.ok, ref = 'control') -> design
+my.gpr.DFs[1]
+
+fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix() %>% trqwe::set_colnames(design))
+
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
 ```
-
-
-```{r}
-for(i in 1:length(the_test)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- the_test[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^(?i)Block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.gpr.DFs[[sample.id]]
-                                  
-}
-```
-
-
-```{r}
-for(i in 1:length(archivos_xml)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- archivos_xml[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.xml.DFs[[sample.id]]
-                                  
-}
-```
-
 
 ```{r}
 for(i in 1:length(archivos_ftr)){
@@ -311,25 +289,6 @@ for(i in 1:length(archivos_tsv)){
 }
 
 ```
-Debemos hacer una lista:
-
-R -> red forward mean or F6\\d\\d.Mean or rMeanSignal
-G -> green forward mean or F5\\d\\d.Mean or gMeanSignal
-Rb -> red background median or B6\\d\\d.Median or rBGMedianSignal
-Gb -> green background median or B5\\d\\d.Median or gBGMedianSignal
-## Nombres de las columnas
-red: 633 (o 6\\d\\d)
-green: 543 (o 5\\d\\d)
-F: forward
-B: background
-________________________________________________________________________
-en .gpr                 en .txt  
-un tipo de col:       otro tipo de col:
-(^F6\\d\\d.*Mean$)     = ^rMeanSignal$       -> forward red mean
-(^F5\\d\\d.*Mean$)     = ^gMeanSignal$       -> forward green mean
-(^B6\\d\\d.*Median$)   = ^rBGMedianSignal$   -> background red median
-(^B5\\d\\d.*Median$)   = ^gBGMedianSignal$   -> background green median
-## 
 
 ```{r}
 #chequeo que están las cuatro columnas que necesitamos
