@@ -12,7 +12,7 @@ libraries(librerias)
 #Rutas de guardado y lectura
 pth <- file.path(getwd(), "mis_gse_data_1.rds")
 path <- file.path(getwd(), "mis_target.psalmonis.rds")
-saving <- file.path(getwd(), "tabla_targets_psalmonis.rds")
+saving <- file.path(getwd(), "tabla_targets_p_salmonis.rds")
 ```
 
 ```{r}
@@ -217,13 +217,13 @@ for(i in 1:length(names(my.gpr.DFs))){
     names() %>%
     str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist()
-  my.cols.init.names <- a.data.study %>%
+  my.cols.new.names <- a.data.study %>%
     names() %>%
     str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist() %>%
     str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')
   my.gpr.DFs[[i]] %>%
-    setnames(., old = old.names, new = my.cols.init.names)
+    setnames(., old = old.names, new = my.cols.new.names)
   DF_ok <- my.gpr.DFs[[i]]
   
   names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
@@ -244,12 +244,11 @@ FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
-colnames(target.ok)[6] <- c("FileName")
+colnames(target.ok)[value] <- c("FileName")
 RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
 RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
 modelMatrix(target.ok, ref = 'control') -> design
-my.gpr.DFs[1]
 
 fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
 

@@ -11,8 +11,9 @@ libraries(librerias)
 
 ```{r}
 #Armar mi ruta
-pth <- file.path(getwd(),'mis_gse_data_1.rds')
-path <- file.path(getwd(), 'mis_target.rds')
+pth <- file.path(getwd(), "mis_gse_data_1.rds")
+path <- file.path(getwd(), "mis_target.rds")
+saving <- file.path(getwd(), "tabla_targets.rds")
 ```
 
 
@@ -561,26 +562,18 @@ mis.targets <- readRDS("mis_target.rds")
 ## Alejandro:
 ```{r warning=TRUE}
 get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
-                                      function(un_codigo_gsm){ try(
-                                        GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
-                                          rownames}) %>% unlist}
+                                                  function(un_codigo_gsm){ try(
+                                                    GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
+                                                      rownames}) %>% unlist}
 purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
 mis.targets %<>% enframe %>% unnest 
-purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> hola
-
-
-hola %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> hola2
-
-
-inner_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final
-full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
-<<<<<<< HEAD
-identical(target_final$name.x, target_final$name.y) # just a check
-=======
-identical(target_final$name.x, target_final$name.y)
->>>>>>> 972f7551fd7efa535782b3a3dfb74e93f08fa1a0
-saving <- file.path(getwd(),'tabla_targets.rds')
+purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> all_gsms
+all_gsms %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'GSM\\d+') ) -> all_gsms_final
+inner_join(mis.targets,all_gsms_final, by=c("geo_accession") ) -> target_final
+### En caso de tener los archivos en el directorio local
 saveRDS(target_final, saving)
+target_final <- readRDS(saving)
+
 ```
 
 
@@ -591,79 +584,184 @@ Extensiones
 #puede ser utilizado para automatizar este proceso
 ```
 
-
-```{r warning=TRUE}
-#Sorting de path segun extensiones
+```{r}
+#Declaración de listas vacias
 archivos_tif <- list()
 archivos_gpr <- list()
 archivos_ftr <- list()
 archivos_txt <- list()
 archivos_xml <- list()
 archivos_tsv <- list()
-
+whole_files <- list()
+gsms_ftr <- list()
+gsms_txt <- list()
+gsms_gpr <- list()
+gsms_xml <- list()
+gsms_tif <- list()
+gsms_tsv <- list()
+##Todos los listas de gsms también son innecesarias 
 for (i in 1:length(target_final$value)){
   
   if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tif." ){
     
     archivos_tif <-append(archivos_tif,target_final$value[i])
+     gsms_tif <- append(gsms_tif, str_extract(target_final$value[i], "GSM\\d+") )
+     whole_files <- append(whole_files, archivos_tif)
     }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".ftr." ){
     archivos_ftr <-append(archivos_ftr,target_final$value[i])
+    gsms_ftr <- append(gsms_ftr, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_ftr)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".xml." ){
     archivos_xml <-append(archivos_xml,target_final$value[i])
+    gsms_xml <- append(gsms_xml, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_xml)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".txt." ){
     archivos_txt <-append(archivos_txt,target_final$value[i])
+    gsms_txt <- append(gsms_txt, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_txt)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".gpr." ) {
     archivos_gpr <-append(archivos_gpr,target_final$value[i])
+    gsms_gpr <- append(gsms_gpr, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_gpr)
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tsv.") {
     archivos_tsv <-append(archivos_tsv,target_final$value[i])
+    gsms_tsv<- append(gsms_tsv, str_extract(target_final$value[i], "GSM\\d+") )
+    whole_files <- append(whole_files, archivos_tsv)
   }
+  
 }
-archivos_tif %>%  unlist()
-archivos_gpr  %>% unlist()
-archivos_ftr  %>% unlist()
-archivos_txt  %>% unlist()
-archivos_xml  %>% unlist()
-archivos_tsv  %>% unlist()
+archivos_tif %>%  unlist() -> archivos_tif
+archivos_gpr  %>% unlist() -> archivos_gpr
+archivos_ftr  %>% unlist()  -> archivos_ftr
+archivos_txt  %>% unlist()  -> archivos_txt
+archivos_xml  %>% unlist()  -> archivos_xml
+archivos_tsv  %>% unlist()  -> archivos_tsv
+whole_files %>% unlist() %>% unique() -> whole_files
 
+
+#esto también es innecesario
+gsms_ftr %>%  unlist() %>% unique()-> gsms_ftr
+gsms_txt %>%  unlist() %>% unique() -> gsms_txt
+gsms_gpr %>%  unlist() %>% unique() -> gsms_gpr
+gsms_tif %>%  unlist() %>% unique() -> gsms_tif
+gsms_xml %>%  unlist() %>% unique() -> gsms_xml
+gsms_tsv%>%  unlist() %>% unique() -> gsms_tsv
 ```
-###
+
 ```{r}
-### pulir y corroborar que funciona (método de loopeo)
-## Hay muchos GSMS que no tienen material suplementario disponible para la descarga, lo que genera un problema con el str_split para lograr generar el output
-mis.path <- list()
-output <- list()
-for (i in 1:6){
-  for (j in 1:length(mis.targets[[i]]$geo_accession)){
-    output <- append(output, getGEOSuppFiles(mis.targets[[i]]$geo_accession[j], makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) %>% rownames())
-    output <- output %>% unlist()
-  }
-  mis.path[[i]] <- append(mis.path, output) %>% unlist()
-  output <- list()
-}
-
-test <- mis.targets
-cn <- 0
-for (i in mis.path){
-  if (sum(grepl('CH2',mis.path)) != 0) {
-    a <- matrix(data = i,ncol=2 ) %>% as.data.frame()
-    colnames(a) <- c("CH1", "CH2")
-    a <-a %>% mutate(file_pathCH1= ifelse( str_detect(`CH1`, "CH2"), .[["CH2"]], .[["CH1"]]  ) )%>% 
-mutate(file_pathCH2= ifelse( str_detect(`CH2`, "CH1"), .[["CH1"]], .[["CH2"]]  ) ) %>% select(-c(CH1,CH2))
-  }
-  else {a <- data.frame(file_pathCH1= i )
-    
-  }
-  cn <- cn + 1
-  test[[cn]]<-bind_cols(test[cn],a)
-}
-
+unpack <- function(path){
+  gunzip(path, remove = F, overwrite = T)
+ }
+test <- Vectorize(unpack)
+test(target_final$value)
 ```
- 
+
+```{r}
+
+extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
+parsing_from_match_to_end <- function(file_path){
+  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+  return(out)
+}
+baptism <- function(path){
+  id <-str_extract(path, 'GSM\\d+')
+  return(id)
+  
+}
+z<- extracted_gpr %>% map_chr(~baptism(.))
+my.gpr.DFs <-map(extracted_gpr, parsing_from_match_to_end)
+names(my.gpr.DFs) <- z
+FileName <- list()
+
+for(i in 1:length(names(my.gpr.DFs))){
+  a.data.study <- my.gpr.DFs[[i]]
+  old.names <- a.data.study %>%
+    names() %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    unlist()
+  my.cols.new.names <- a.data.study %>%
+    names() %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    unlist() %>%
+    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')
+  my.gpr.DFs[[i]] %>%
+    setnames(., old = old.names, new = my.cols.new.names)
+  DF_ok <- my.gpr.DFs[[i]]
+  
+  names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
+  
+  str_extract(extracted_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
+    na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
+  
+  str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr") -> new.FileName.path
+  for (j in 1:length(new.FileName.path)){
+    write_delim(DF_ok, path= new.FileName.path[j], delim = "\t", na = "NA", append = FALSE)
+    FileName <- append(FileName,new.FileName.path)  
+  }
+  
+  
+}                 
+names(my.gpr.DFs)
+FileName<- FileName %>% unique()
+FileName %>% str_extract('GSM\\d+') -> sample.names
+sample.names_files <- cbind(row.names = sample.names,FileName)
+target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
+target.ok$value <- FileName %>% unlist()
+colnames(target.ok)[11] <- c("FileName")
+### la idea de esta función es distribuir los nombres de manera correcta.
+Volcano_generator <- function(adataframe){
+  length(adataframe) -> limite
+  z = 1
+  while (z <= limite){
+  adataframe[[z]] %>% names() %>% str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist() -> real.names
+  
+    
+    
+    
+    
+    z = z+1
+    }  
+  
+}
+RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+modelMatrix(target.ok, ref = 'control') -> design
+
+fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
+
+fit2.1 <- eBayes(fit.1)
+diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+
+EnhancedVolcano(diffexp,
+                lab = diffexp$ID,
+                selectLab = NULL,
+                x = 'log2FC',
+                y = 'adj.P.Val',
+                xlim = c(-6,6),
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 0.01,
+                FCcutoff = 1.0,
+                pointSize = 1.0,
+                labSize = 3.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                drawConnectors = F,
+                widthConnectors = 0.2,
+                colConnectors = 'grey30',
+                title = '',
+                subtitle = '',
+                ylim = c(0, 6))
+```
+
 
 
 
