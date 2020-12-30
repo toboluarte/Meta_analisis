@@ -5,7 +5,7 @@ output: html_notebook
 
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "data.table", "PAA")
 libraries(librerias)
 ```
 
@@ -662,10 +662,9 @@ test(target_final$value)
 ```
 
 ```{r}
-
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
 parsing_from_match_to_end <- function(file_path){
-  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+  as.data.frame( fread(file = file_path,sep = '\t', skip = 'Block')) -> out
   return(out)
 }
 baptism <- function(path){
@@ -705,7 +704,11 @@ for(i in 1:length(names(my.gpr.DFs))){
   }
   
   
-}                 
+}
+```
+
+
+```{r}
 names(my.gpr.DFs)
 FileName<- FileName %>% unique()
 FileName %>% str_extract('GSM\\d+') -> sample.names
@@ -714,20 +717,85 @@ target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
 colnames(target.ok)[11] <- c("FileName")
 ### la idea de esta función es distribuir los nombres de manera correcta.
+```
+red: 633 (o 6\\d\\d)
+green: 543 (o 5\\d\\d)
+F: forward
+B: background
+________________________________________________________________________
+en .gpr                 en .txt  
+un tipo de col:       otro tipo de col:
+(^F6\\d\\d.*Mean$)     = ^rMeanSignal$       -> forward red mean
+(^F5\\d\\d.*Mean$)     = ^gMeanSignal$       -> forward green mean
+(^B6\\d\\d.*Median$)   = ^rBGMedianSignal$   -> background red median
+(^B5\\d\\d.*Median$)   = ^gBGMedianSignal$   -> background green median
+## 
+
+```{r}
 Volcano_generator <- function(adataframe){
   length(adataframe) -> limite
   z = 1
   while (z <= limite){
   adataframe[[z]] %>% names() %>% str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist() -> real.names
-  
+ 
+   for (i in 1:length(real.names)) {
+      
+      if(real.names[i] == "F670Mean"| real.names[i] =="F635Mean"| real.names[i] =="F633Mean"){
+        real.names[i] -> rojo_forward
+      
+    }
+      else if (real.names[i] == "F532Mean"| real.names[i] =="F543Mean"|real.names[i] =="F570Mean") {
+        real.names[i] -> verde_forward
+      
+    }
     
+      else if(real.names[i]== "B670Median" |real.names[i] =="B633Median"|real.names[i] =="B635Median") {
+        real.names[i] -> rojo_background
+      }
     
-    
-    
+      else if (real.names[i] == "B532Median"|real.names[i] =="B543Median"|real.names[i] =="B570Median") {
+      real.names[i] -> verde_background
+    }
+        }
+    RG          <- read.maimages(target.ok$FileName[z] ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
+    RG.bc2      <-backgroundCorrect(RG,method="normexp")
+    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
+    fit2.1 <- eBayes(fit.1)
+    diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+    output <- EnhancedVolcano(diffexp,
+                lab = diffexp$ID,
+                selectLab = NULL,
+                x = 'log2FC',
+                y = 'adj.P.Val',
+                xlim = c(-6,6),
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 0.01,
+                FCcutoff = 1.0,
+                pointSize = 1.0,
+                labSize = 3.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                drawConnectors = F,
+                widthConnectors = 0.2,
+                colConnectors = 'grey30',
+                title = '',
+                subtitle = '',
+                ylim = c(0, 6))
     z = z+1
     }  
-  
+  return(output)
 }
+test <- my.gpr.DFs[[3]]
+length(test)
+Volcano_generator(my.gpr.DFs)
+```
+
+
+```{r}
 RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
 RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
