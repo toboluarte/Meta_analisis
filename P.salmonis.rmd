@@ -16,6 +16,16 @@ saving <- file.path(getwd(), "tabla_targets_p_salmonis.rds")
 ```
 
 ```{r}
+#Cargar expressionset desde array express
+load("E-MTAB-685.eSet.r")
+expr = assayDataElement(study,"G")
+pData(expr)
+pData(study) ## aparentemente no hay nada que filtrar
+study
+```
+
+
+```{r}
 titulos <- data.frame()
 list_con_eset_filtrados <- list()
 RDS <- readRDS(pth)
@@ -197,6 +207,7 @@ test(target_final$value)
 ### for GPR files
 
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
+
 parsing_from_match_to_end <- function(file_path){
   as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
   return(out)
@@ -245,6 +256,69 @@ sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
 colnames(target.ok)[value] <- c("FileName")
+```
+
+```{r}
+Volcano_generator <- function(adataframe){
+  length(adataframe) -> limite
+  z = 1
+  while (z <= limite){
+  adataframe[[z]] %>% names() %>% str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist() -> real.names
+ 
+   for (i in 1:length(real.names)) {
+      
+      if(real.names[i] == "F670Mean"| real.names[i] =="F635Mean"| real.names[i] =="F633Mean"){
+        real.names[i] -> rojo_forward
+      
+    }
+      else if (real.names[i] == "F532Mean"| real.names[i] =="F543Mean"|real.names[i] =="F570Mean") {
+        real.names[i] -> verde_forward
+      
+    }
+    
+      else if(real.names[i]== "B670Median" |real.names[i] =="B633Median"|real.names[i] =="B635Median") {
+        real.names[i] -> rojo_background
+      }
+    
+      else if (real.names[i] == "B532Median"|real.names[i] =="B543Median"|real.names[i] =="B570Median") {
+      real.names[i] -> verde_background
+    }
+        }
+    RG          <- read.maimages(target.ok$FileName[z] ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
+    RG.bc2      <-backgroundCorrect(RG,method="normexp")
+    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
+    fit2.1 <- eBayes(fit.1)
+    diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+    output <- EnhancedVolcano(diffexp,
+                lab = diffexp$ID,
+                selectLab = NULL,
+                x = 'log2FC',
+                y = 'adj.P.Val',
+                xlim = c(-6,6),
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 0.01,
+                FCcutoff = 1.0,
+                pointSize = 1.0,
+                labSize = 3.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                drawConnectors = F,
+                widthConnectors = 0.2,
+                colConnectors = 'grey30',
+                title = '',
+                subtitle = '',
+                ylim = c(0, 6))
+    z = z+1
+    }  
+  return(output)
+}
+```
+
+```{r}
 RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
 RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
@@ -278,6 +352,17 @@ EnhancedVolcano(diffexp,
                 subtitle = '',
                 ylim = c(0, 6)) 
 ```
+
+
+```{r}
+## For tiff files
+extracted_tif <- gsub('.gz', '',archivos_tif) %>% unique()
+n<- extracted_tif %>% map_chr(~baptism(.))
+coralRG <- read.maimages(extracted_tif)
+
+
+```
+
 
 ```{r}
 for(i in 1:length(archivos_ftr)){
@@ -345,72 +430,7 @@ for(i in 1:length(names(my.txt.DFs))){
                                             }
 ```
 
-```{r}
-### For GPR files
 
-for(i in 1:length(names(my.gpr.DFs))){
-  
-                                            a.data.study          <- my.gpr.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.gpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.gpr.DFs[[i]]
-                                            
-                                            names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_gpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_gpr_en_la_iteracion
-                                            
-                                            append(new.FileName.path,str_replace(mi_ruta_al_gpr_en_la_iteracion,  "\\.gpr", "_Corrected.gpr")) -> new.FileName.path
-                                             write_delim(DF_ok, path= new.FileName.path[i], delim= '\t', na = "NA", append = FALSE)
-                                             
-                                            append(GSM_corrected_files_in_order, new.FileName.path[i] %>% str_extract('GSM\\d+'))  -> GSM_corrected_files_in_order
-                                           
-}
-
-list.files(path=new.FileName.path, recursive = F, full.names = T) %>% str_extract_all('.*_Corrected.gpr$') %>% unlist() -> FileName
-FileName %>% str_extract('GSM\\d+') -> sample.names
-
-data.frame(FileName)  %>% trqwe::set_rownames(sample.names)                    -> sample.names_files
-
-for(i in 1:length(mis.targets)){
-merge(mis.targets[i], sample.names_files, by=0) %>% column_to_rownames('Row.names') -> target.ok
-}  
-  RG          <- read.maimages(target.ok  ,columns=list(R="rMeanSignal",G="gMeanSignal",Rb="rBGMedianSignal",Gb="gBGMedianSignal"), annotation = "ProbeName")
-RG.bc2      <-backgroundCorrect(RG,method="normexp")
-RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
-modelMatrix(target.ok, ref = 'non_infected') -> design
-  
-
-```
-
-```{r}
-for(i in 1:length(names(my.tsv.DFs))){
-  
-                                            a.data.study          <- my.tsv.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.tsv.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.tsv.DFs[[i]]
-                                            
-                                            names(my.tsv.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_tsv, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
- 
-                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
-                                            }
-```
 
 ```{r}
 for(i in 1:length(names(my.fpr.DFs))){
@@ -436,30 +456,7 @@ for(i in 1:length(names(my.fpr.DFs))){
                                             }
 ```
 
-```{r}
-### Lo dejaré porsiacaso, pero no tiene sentido alguno
-for(i in 1:length(names(my.tif.DFs))){
-  
-                                            a.data.study          <- my.tif.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.tif.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.tif.DFs[[i]]
-                                            
-                                            names(my.tif.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_tif, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
- 
-                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
-                                            }
-```
+
 
 ```{r}
 for(i in 1:length(names(my.xml.DFs))){
