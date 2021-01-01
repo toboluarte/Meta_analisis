@@ -18,10 +18,12 @@ saving <- file.path(getwd(), "tabla_targets_p_salmonis.rds")
 ```{r}
 #Cargar expressionset desde array express
 load("E-MTAB-685.eSet.r")
+#load ("A-MEXP-2065.adf.txt") ### esto no sirve, creo que sólo se debe hacer el Parsing.
 expr = assayDataElement(study,"G")
-pData(expr)
-pData(study) ## aparentemente no hay nada que filtrar
-study
+
+## aparentemente no hay nada que filtrar
+pData(study)
+study$Array.Data.File
 ```
 
 
@@ -133,46 +135,34 @@ archivos_ftr <- list()
 archivos_txt <- list()
 archivos_xml <- list()
 archivos_tsv <- list()
-whole_files <- list()
-gsms_ftr <- list()
-gsms_txt <- list()
-gsms_gpr <- list()
-gsms_xml <- list()
-gsms_tif <- list()
-gsms_tsv <- list()
+
 ##Todos los listas de gsms también son innecesarias 
 for (i in 1:length(target_final$value)){
   
   if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tif." ){
     
     archivos_tif <-append(archivos_tif,target_final$value[i])
-     gsms_tif <- append(gsms_tif, str_extract(target_final$value[i], "GSM\\d+") )
-     whole_files <- append(whole_files, archivos_tif)
+     
     }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".ftr." ){
     archivos_ftr <-append(archivos_ftr,target_final$value[i])
-    gsms_ftr <- append(gsms_ftr, str_extract(target_final$value[i], "GSM\\d+") )
-    whole_files <- append(whole_files, archivos_ftr)
+    
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".xml." ){
     archivos_xml <-append(archivos_xml,target_final$value[i])
-    gsms_xml <- append(gsms_xml, str_extract(target_final$value[i], "GSM\\d+") )
-    whole_files <- append(whole_files, archivos_xml)
+
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".txt." ){
     archivos_txt <-append(archivos_txt,target_final$value[i])
-    gsms_txt <- append(gsms_txt, str_extract(target_final$value[i], "GSM\\d+") )
-    whole_files <- append(whole_files, archivos_txt)
+    
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".gpr." ) {
     archivos_gpr <-append(archivos_gpr,target_final$value[i])
-    gsms_gpr <- append(gsms_gpr, str_extract(target_final$value[i], "GSM\\d+") )
-    whole_files <- append(whole_files, archivos_gpr)
+  
   }
   else if (str_extract(target_final$value[i], "[.]([a-z])*[.]") == ".tsv.") {
     archivos_tsv <-append(archivos_tsv,target_final$value[i])
-    gsms_tsv<- append(gsms_tsv, str_extract(target_final$value[i], "GSM\\d+") )
-    whole_files <- append(whole_files, archivos_tsv)
+    
   }
   
 }
@@ -182,16 +172,6 @@ archivos_ftr  %>% unlist()  -> archivos_ftr
 archivos_txt  %>% unlist()  -> archivos_txt
 archivos_xml  %>% unlist()  -> archivos_xml
 archivos_tsv  %>% unlist()  -> archivos_tsv
-whole_files %>% unlist() %>% unique() -> whole_files
-
-
-#esto también es innecesario
-gsms_ftr %>%  unlist() %>% unique()-> gsms_ftr
-gsms_txt %>%  unlist() %>% unique() -> gsms_txt
-gsms_gpr %>%  unlist() %>% unique() -> gsms_gpr
-gsms_tif %>%  unlist() %>% unique() -> gsms_tif
-gsms_xml %>%  unlist() %>% unique() -> gsms_xml
-gsms_tsv%>%  unlist() %>% unique() -> gsms_tsv
 ```
 
 
@@ -226,14 +206,34 @@ for(i in 1:length(names(my.gpr.DFs))){
   a.data.study <- my.gpr.DFs[[i]]
   old.names <- a.data.study %>%
     names() %>%
-    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist()
-  my.cols.new.names <- a.data.study %>%
-    names() %>%
+  
+  for (j in 1:length(old.names)) {
+      
+      if(old.names[i] == str_detect("^F6[0-9]{2}.*Mean$")){
+        old.names[i] -> rojo_forward
+      
+    }
+      else if (old.names[i] == str_detect("^F5[0-9]{2}.*Mean$")) {
+        old.names[i] -> verde_forward
+      
+    }
+    
+      else if(old.names[i]== str_detect("^B6[0-9]{2}.*Median$") ) {
+        old.names[i] -> rojo_background
+      }
+    
+      else if (old.names[i] == str_detect("^B5[0-9]{2}.*Median$")) {
+      old.names[i] -> verde_background
+      }
+    color_vector <- c(rojo_forward, verde_forward, rojo_background, verde_background)
+    }
+  my.cols.new.names <- color_vector %>% 
     str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist() %>%
-    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')
-  my.gpr.DFs[[i]] %>%
+    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '') 
+    my.gpr.DFs[[i]] %>%
     setnames(., old = old.names, new = my.cols.new.names)
   DF_ok <- my.gpr.DFs[[i]]
   
@@ -249,7 +249,7 @@ for(i in 1:length(names(my.gpr.DFs))){
   }
   
   
-}                 
+}
 FileName<- FileName %>% unique()
 FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
@@ -259,32 +259,7 @@ colnames(target.ok)[value] <- c("FileName")
 ```
 
 ```{r}
-Volcano_generator <- function(adataframe){
-  length(adataframe) -> limite
-  z = 1
-  while (z <= limite){
-  adataframe[[z]] %>% names() %>% str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist() -> real.names
- 
-   for (i in 1:length(real.names)) {
-      
-      if(real.names[i] == "F670Mean"| real.names[i] =="F635Mean"| real.names[i] =="F633Mean"){
-        real.names[i] -> rojo_forward
-      
-    }
-      else if (real.names[i] == "F532Mean"| real.names[i] =="F543Mean"|real.names[i] =="F570Mean") {
-        real.names[i] -> verde_forward
-      
-    }
-    
-      else if(real.names[i]== "B670Median" |real.names[i] =="B633Median"|real.names[i] =="B635Median") {
-        real.names[i] -> rojo_background
-      }
-    
-      else if (real.names[i] == "B532Median"|real.names[i] =="B543Median"|real.names[i] =="B570Median") {
-      real.names[i] -> verde_background
-    }
-        }
-    RG          <- read.maimages(target.ok$FileName[z] ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
+    RG          <- read.maimages(mis.targets$43255 ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
     RG.bc2      <-backgroundCorrect(RG,method="normexp")
     RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
@@ -312,10 +287,7 @@ Volcano_generator <- function(adataframe){
                 title = '',
                 subtitle = '',
                 ylim = c(0, 6))
-    z = z+1
-    }  
-  return(output)
-}
+
 ```
 
 ```{r}

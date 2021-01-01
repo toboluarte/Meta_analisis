@@ -663,6 +663,7 @@ test(target_final$value)
 
 ```{r}
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
+
 parsing_from_match_to_end <- function(file_path){
   as.data.frame( fread(file = file_path,sep = '\t', skip = 'Block')) -> out
   return(out)
@@ -681,14 +682,34 @@ for(i in 1:length(names(my.gpr.DFs))){
   a.data.study <- my.gpr.DFs[[i]]
   old.names <- a.data.study %>%
     names() %>%
-    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist()
-  my.cols.new.names <- a.data.study %>%
-    names() %>%
+  
+  for (j in 1:length(old.names)) {
+      
+      if(old.names[i] == str_detect("^F6[0-9]{2}.*Mean$")){
+        old.names[i] -> rojo_forward
+      
+    }
+      else if (old.names[i] == str_detect("^F5[0-9]{2}.*Mean$")) {
+        old.names[i] -> verde_forward
+      
+    }
+    
+      else if(old.names[i]== str_detect("^B6[0-9]{2}.*Median$") ) {
+        old.names[i] -> rojo_background
+      }
+    
+      else if (old.names[i] == str_detect("^B5[0-9]{2}.*Median$")) {
+      old.names[i] -> verde_background
+      }
+    color_vector <- c(rojo_forward, verde_forward, rojo_background, verde_background)
+    }
+  my.cols.new.names <- color_vector %>% 
     str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
     unlist() %>%
-    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '')
-  my.gpr.DFs[[i]] %>%
+    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '') 
+    my.gpr.DFs[[i]] %>%
     setnames(., old = old.names, new = my.cols.new.names)
   DF_ok <- my.gpr.DFs[[i]]
   
@@ -705,19 +726,16 @@ for(i in 1:length(names(my.gpr.DFs))){
   
   
 }
-```
-
-
-```{r}
-names(my.gpr.DFs)
 FileName<- FileName %>% unique()
 FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
 colnames(target.ok)[11] <- c("FileName")
-### la idea de esta función es distribuir los nombres de manera correcta.
 ```
+
+
+
 red: 633 (o 6\\d\\d)
 green: 543 (o 5\\d\\d)
 F: forward
@@ -732,39 +750,16 @@ un tipo de col:       otro tipo de col:
 ## 
 
 ```{r}
-Volcano_generator <- function(adataframe){
-  length(adataframe) -> limite
-  z = 1
-  while (z <= limite){
-  adataframe[[z]] %>% names() %>% str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>% unlist() -> real.names
- 
-   for (i in 1:length(real.names)) {
-      
-      if(real.names[i] == "F670Mean"| real.names[i] =="F635Mean"| real.names[i] =="F633Mean"){
-        real.names[i] -> rojo_forward
-      
-    }
-      else if (real.names[i] == "F532Mean"| real.names[i] =="F543Mean"|real.names[i] =="F570Mean") {
-        real.names[i] -> verde_forward
-      
-    }
-    
-      else if(real.names[i]== "B670Median" |real.names[i] =="B633Median"|real.names[i] =="B635Median") {
-        real.names[i] -> rojo_background
-      }
-    
-      else if (real.names[i] == "B532Median"|real.names[i] =="B543Median"|real.names[i] =="B570Median") {
-      real.names[i] -> verde_background
-    }
-        }
-    RG          <- read.maimages(target.ok$FileName[z] ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
+    RG          <- read.maimages(,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
     RG.bc2      <-backgroundCorrect(RG,method="normexp")
     RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
     fit2.1 <- eBayes(fit.1)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
     diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
-    output <- EnhancedVolcano(diffexp,
+    
+    
+ EnhancedVolcano(diffexp,
                 lab = diffexp$ID,
                 selectLab = NULL,
                 x = 'log2FC',
@@ -785,13 +780,10 @@ Volcano_generator <- function(adataframe){
                 title = '',
                 subtitle = '',
                 ylim = c(0, 6))
-    z = z+1
-    }  
-  return(output)
-}
+ 
 test <- my.gpr.DFs[[3]]
 length(test)
-Volcano_generator(my.gpr.DFs)
+
 ```
 
 
