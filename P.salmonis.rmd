@@ -16,18 +16,6 @@ saving <- file.path(getwd(), "tabla_targets_p_salmonis.rds")
 ```
 
 ```{r}
-#Cargar expressionset desde array express
-load("E-MTAB-685.eSet.r")
-#load ("A-MEXP-2065.adf.txt") ### esto no sirve, creo que sólo se debe hacer el Parsing.
-expr = assayDataElement(study,"G")
-
-## aparentemente no hay nada que filtrar
-pData(study)
-study$Array.Data.File
-```
-
-
-```{r}
 titulos <- data.frame()
 list_con_eset_filtrados <- list()
 RDS <- readRDS(pth)
@@ -204,37 +192,40 @@ FileName <- list()
 
 for(i in 1:length(names(my.gpr.DFs))){
   a.data.study <- my.gpr.DFs[[i]]
+  transform <- a.data.study %>%
+    names() %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Median$)") %>%
+    unlist()
   old.names <- a.data.study %>%
     names() %>%
-    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}.*Median$)|(^B[0-9]{3}.*Median$)") %>%
+    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Median$)") %>%
     unlist()
   
   for (j in 1:length(old.names)) {
       
-      if(old.names[i] == str_detect("^F6[0-9]{2}.*Mean$")){
-        old.names[i] -> rojo_forward
+      if(str_detect(old.names[j],"^F6[0-9]{2}.*Mean$")){
+        old.names[j] <- "rojo_forward"
       
     }
-      else if (old.names[i] == str_detect("^F5[0-9]{2}.*Mean$")) {
-        old.names[i] -> verde_forward
+      else if (str_detect(old.names[j],"^F5[0-9]{2}.*Mean$")) {
+        old.names[j] <- "verde_forward"
       
     }
     
-      else if(old.names[i]== str_detect("^B6[0-9]{2}.*Median$") ) {
-        old.names[i] -> rojo_background
+      else if(str_detect(old.names[j],"^B6[0-9]{2}.*Median$") ) {
+        old.names[j] <- "rojo_background"
       }
     
-      else if (old.names[i] == str_detect("^B5[0-9]{2}.*Median$")) {
-      old.names[i] -> verde_background
+      else if (str_detect(old.names[j],"^B5[0-9]{2}.*Median$")) {
+      old.names[j] <- "verde_background"
       }
-    color_vector <- c(rojo_forward, verde_forward, rojo_background, verde_background)
-    }
-  my.cols.new.names <- color_vector %>% 
-    str_extract_all("(^F[0-9]{3}.*Mean$)|(^B[0-9]{3}.*Mean$)|(^F[0-9]{3}+.*Median$)|(^B[0-9]{3}.*Median$)") %>%
-    unlist() %>%
-    str_replace_all('[:whitespace:]|(Rgn.*R.*)|\\.', '') 
+   
+  }
+  
+  my.cols.new.names <- old.names %>% 
+    unlist() 
     my.gpr.DFs[[i]] %>%
-    setnames(., old = old.names, new = my.cols.new.names)
+    setnames(., old = transform, new = my.cols.new.names, skip_absent=TRUE)
   DF_ok <- my.gpr.DFs[[i]]
   
   names(my.gpr.DFs)[i] -> mi_gsm_en_la_iteracion
@@ -255,13 +246,14 @@ FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
-colnames(target.ok)[value] <- c("FileName")
+colnames(target.ok)[6] <- c("FileName")
 ```
 
 ```{r}
-    RG          <- read.maimages(mis.targets$43255 ,source = "generic", columns = list(R= rojo_forward ,G= verde_forward,Rb=rojo_background ,Gb=verde_background), annotation = c("ProbeName", "SequenceID"))
+    RG          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
     RG.bc2      <-backgroundCorrect(RG,method="normexp")
     RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    modelMatrix(target.ok, ref = 'control') -> design
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
     fit2.1 <- eBayes(fit.1)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
@@ -291,38 +283,15 @@ colnames(target.ok)[value] <- c("FileName")
 ```
 
 ```{r}
-RG          <- read.maimages(target.ok ,source = "generic", columns = list(R="F633Mean" ,G="F543Mean",Rb="B633Median",Gb="B543Median"), annotation = c("ProbeName", "SequenceID"))
-RG.bc2      <-backgroundCorrect(RG,method="normexp")
-RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
-modelMatrix(target.ok, ref = 'control') -> design
+### For array express 
+#Cargar expressionset desde array express
+load("E-MTAB-685.eSet.r")
+#load ("A-MEXP-2065.adf.txt") ### esto no sirve, creo que sólo se debe hacer el Parsing.
+expr = assayDataElement(study,"G")
 
-fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
-
-fit2.1 <- eBayes(fit.1)
-diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
-diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
-
-EnhancedVolcano(diffexp,
-                lab = diffexp$ID,
-                selectLab = NULL,
-                x = 'log2FC',
-                y = 'adj.P.Val',
-                xlim = c(-6,6),
-                xlab = bquote(~Log[2]~ 'fold change'),
-                pCutoff = 0.01,
-                FCcutoff = 1.0,
-                pointSize = 1.0,
-                labSize = 3.0,
-                colAlpha = 1,
-                legendPosition = 'right',
-                legendLabSize = 12,
-                legendIconSize = 4.0,
-                drawConnectors = F,
-                widthConnectors = 0.2,
-                colConnectors = 'grey30',
-                title = '',
-                subtitle = '',
-                ylim = c(0, 6)) 
+## aparentemente no hay nada que filtrar
+pData(study)
+study$Array.Data.File
 ```
 
 
