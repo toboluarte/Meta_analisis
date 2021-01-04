@@ -4,7 +4,7 @@ output: html_notebook
 ---
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA", "data.table")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA", "data.table", "ArrayExpress", "SRAdb")
 libraries(librerias)
 ```
 
@@ -258,7 +258,7 @@ colnames(target.ok)[6] <- c("FileName")
     fit2.1 <- eBayes(fit.1)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
     diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
-    output <- EnhancedVolcano(diffexp,
+  EnhancedVolcano(diffexp,
                 lab = diffexp$ID,
                 selectLab = NULL,
                 x = 'log2FC',
@@ -285,12 +285,24 @@ colnames(target.ok)[6] <- c("FileName")
 ```{r}
 ### For array express 
 #Cargar expressionset desde array express
-load("E-MTAB-685.eSet.r")
-#load ("A-MEXP-2065.adf.txt") ### esto no sirve, creo que sólo se debe hacer el Parsing.
-expr = assayDataElement(study,"G")
+test <- getAE("E-MTAB-685", type = "full")
+rawset <- ae2bioc(mageFiles = test) ## duplicate Row.names are not allowed.
 
-## aparentemente no hay nada que filtrar
+AEset<-ArrayExpress("E-MTAB-685")
+AEsetnorm<- rma(AEset)
+
+rawset <- try(ArrayExpress("E-MTAB-685"))
+expr = assayDataElement(study,"G")
+parsing_from_match_to_end <- function(file_path){
+  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+  return(out)
+}
+targets <- readTargets()
+parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
+
 pData(study)
+pData(expr)
+ RG          <- read.maimages(study$Array.Data.File ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
 study$Array.Data.File
 ```
 
