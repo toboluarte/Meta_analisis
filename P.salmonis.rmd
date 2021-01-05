@@ -250,15 +250,19 @@ colnames(target.ok)[6] <- c("FileName")
 ```
 
 ```{r}
-    RG          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
+RG          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
     RG.bc2      <-backgroundCorrect(RG,method="normexp")
     RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
     modelMatrix(target.ok, ref = 'control') -> design
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
     fit2.1 <- eBayes(fit.1)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
-    diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
-  EnhancedVolcano(diffexp,
+```
+
+
+```{r}
+ #diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
+EnhancedVolcano(diffexp,
                 lab = diffexp$ID,
                 selectLab = NULL,
                 x = 'log2FC',
@@ -285,23 +289,39 @@ colnames(target.ok)[6] <- c("FileName")
 ```{r}
 ### For array express 
 #Cargar expressionset desde array express
-test <- getAE("E-MTAB-685", type = "full")
-rawset <- ae2bioc(mageFiles = test) ## duplicate Row.names are not allowed.
+load("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/E-MTAB-685.eSet.r")
+fdata_study<-fData(study)
+assayDataElementNames(study)
+red <- assayDataElement(study,"R")
+red_back <- assayDataElement(study,"Rb")
+green = assayDataElement(study,"G")
+green_back <- assayDataElement(study,"Gb")
+colnames(red)
+colnames(red_back)
+colnames(green)
+colnames(green_back)
+v5_95_Feb07_1_1 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+colnames(v5_95_Feb07_1_1) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
 
-AEset<-ArrayExpress("E-MTAB-685")
-AEsetnorm<- rma(AEset)
+v5_95_Feb07_1_2 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+test<-inner_join(v5_95_Feb07_1_1_row, Sequence_probs, by = "Row")
+
+target_test <- data.frame("Cy3", "Cy5", "Accesion", "FileName")
+
 
 rawset <- try(ArrayExpress("E-MTAB-685"))
-expr = assayDataElement(study,"G")
+
 parsing_from_match_to_end <- function(file_path){
   as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
   return(out)
 }
 targets <- readTargets()
-parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
-
+Sequence_probs<-parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
+v5_95_Feb07_1_1
+exprs(study)
+featureData(study)
+sample(fData(study))
 pData(study)
-pData(expr)
  RG          <- read.maimages(study$Array.Data.File ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
 study$Array.Data.File
 ```
