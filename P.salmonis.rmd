@@ -61,7 +61,7 @@ un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| mat
 
 ```{r}
 ## estudios que tienen match con Salmo salar
-RDS$GSE1012 %>% pData() #p. salmonis Atlantic Salmon
+RDS$GSE1012 %>% pData() #p. salmonis Atlantic Salmon macrofagos infectados
 RDS$GSE1031 %>% pData() #p. salmonis Atlantic Salmon 
 RDS$GSE43255%>% pData() %>% select(matches("organism_ch*")) # p. salmonis, PAPER PROFE
 
@@ -82,7 +82,7 @@ RDS$GSE140756%>% pData() %>% select(matches("organism_ch*")) #Chalimus
 ```
 
 ```{r}
-llist(GSE1012,GSE1031,GSE43255) -> mis.targets
+llist(GSE1031,GSE43255) -> mis.targets
 
 saveRDS(mis.targets, path)
 mis.targets <- readRDS(path)
@@ -248,7 +248,7 @@ target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
 colnames(target.ok)[6] <- c("FileName")
 ```
-
+Blast contra los GPL.
 ```{r}
 RG          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
     RG.bc2      <-backgroundCorrect(RG,method="normexp")
@@ -296,34 +296,49 @@ red <- assayDataElement(study,"R")
 red_back <- assayDataElement(study,"Rb")
 green = assayDataElement(study,"G")
 green_back <- assayDataElement(study,"Gb")
-colnames(red)
-colnames(red_back)
-colnames(green)
-colnames(green_back)
+Sequence_probs <- parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
+
 v5_95_Feb07_1_1 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
 colnames(v5_95_Feb07_1_1) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
+v5_95_Feb07_1_1_row <- v5_95_Feb07_1_1 %>% rownames_to_column("Row")
 
 v5_95_Feb07_1_2 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+colnames(v5_95_Feb07_1_2) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
+v5_95_Feb07_1_2_row <- v5_95_Feb07_1_2 %>% rownames_to_column("Row")
+
+v5_95_Feb07_1_3 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+colnames(v5_95_Feb07_1_3) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
+v5_95_Feb07_1_3_row <- v5_95_Feb07_1_3 %>% rownames_to_column("Row")
+
+v5_95_Feb07_1_4 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+colnames(v5_95_Feb07_1_4) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
+v5_95_Feb07_1_4_row <- v5_95_Feb07_1_4 %>% rownames_to_column("Row")
+
 test<-inner_join(v5_95_Feb07_1_1_row, Sequence_probs, by = "Row")
+ write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_1_corrected", delim = "\t", na = "NA", append = FALSE)
+test2<-inner_join(v5_95_Feb07_1_2_row, Sequence_probs, by = "Row")
+write_delim(test2, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_2_corrected", delim = "\t", na = "NA", append = FALSE)
+test3<-inner_join(v5_95_Feb07_1_3_row, Sequence_probs, by = "Row")
+write_delim(test3, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_3_corrected", delim = "\t", na = "NA", append = FALSE)
+test4<-inner_join(v5_95_Feb07_1_4_row, Sequence_probs, by = "Row")
+write_delim(test4, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_4_corrected", delim = "\t", na = "NA", append = FALSE)
 
-target_test <- data.frame("Cy3", "Cy5", "Accesion", "FileName")
+
+Accesion <- c("10031", "10031" , "10031" ,"10031")
+Cy3 <- c("Control","Control","Control","Control")
+Cy5 <- c("Infected", "Infected","Infected","Infected")
+Filename <- c("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_1_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_2_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_3_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_4_corrected")
+target_test <- data.frame(Cy3, Cy5, Accesion, Filename)
 
 
-rawset <- try(ArrayExpress("E-MTAB-685"))
-
-parsing_from_match_to_end <- function(file_path){
-  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
-  return(out)
-}
-targets <- readTargets()
-Sequence_probs<-parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
-v5_95_Feb07_1_1
-exprs(study)
-featureData(study)
-sample(fData(study))
-pData(study)
- RG          <- read.maimages(study$Array.Data.File ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
+ RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
 study$Array.Data.File
+RG.bc2      <-backgroundCorrect(RG,method="normexp")
+    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    modelMatrix(target_test, ref = 'Control') -> design
+    fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
+    fit2.1 <- eBayes(fit.1)
+    diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
 ```
 
 
@@ -454,6 +469,13 @@ for(i in 1:length(names(my.xml.DFs))){
                                             write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
                                             }
 ```
+
+```{r}
+a <-getGEO("GSE1012")
+?getGEO
+exprs(a$GSE1012_series_matrix.txt.gz)
+```
+
 
 
 
