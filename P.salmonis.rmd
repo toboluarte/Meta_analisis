@@ -292,53 +292,138 @@ EnhancedVolcano(diffexp,
 load("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/E-MTAB-685.eSet.r")
 fdata_study<-fData(study)
 assayDataElementNames(study)
-red <- assayDataElement(study,"R")
-red_back <- assayDataElement(study,"Rb")
-green = assayDataElement(study,"G")
-green_back <- assayDataElement(study,"Gb")
+red <- assayDataElement(study,"R") %>% as.data.frame()
+red_back <- assayDataElement(study,"Rb") %>% as.data.frame()
+green = assayDataElement(study,"G")%>% as.data.frame()
+green_back <- assayDataElement(study,"Gb")%>% as.data.frame()
+
+red1 <- red["10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]
+red_back1 <- red_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]
+green1 = green["10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]
+green_back1 <- green_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]
+
+red2 <-red["10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]
+red_back2 <- red_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]
+green2 = green["10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]
+green_back2 <-  green_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]
+
+red3 <- red["10031 2 uncom tif_GE2-v5_95_Feb07_1_3"]
+red_back3 <- red_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_3"]
+green3 = green["10031 2 uncom tif_GE2-v5_95_Feb07_1_3"]
+green_back3 <- green_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_3"]
+
+red4 <- red["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
+red_back4 <- red_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
+green4 = green["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
+green_back4 <-green_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"] 
+
+
+```
+
+
+```{r}
 Sequence_probs <- parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
+Sequence_probs$Row <-seq(1:length(Sequence_probs$Row))
+Sequence_probs$Row %<>% as.character() 
 
-v5_95_Feb07_1_1 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+v5_95_Feb07_1_1 <- as.data.frame(cbind(red1[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back1[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green1[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back1[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
 colnames(v5_95_Feb07_1_1) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
-v5_95_Feb07_1_1_row <- v5_95_Feb07_1_1 %>% rownames_to_column("Row")
+v5_95_Feb07_1_1_row <- v5_95_Feb07_1_1 %>% rownames_to_column("Row") %>%
 
-v5_95_Feb07_1_2 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+v5_95_Feb07_1_2 <- as.data.frame(cbind(red2[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], red_back2[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], green2[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], green_back2[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]))
 colnames(v5_95_Feb07_1_2) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
 v5_95_Feb07_1_2_row <- v5_95_Feb07_1_2 %>% rownames_to_column("Row")
 
-v5_95_Feb07_1_3 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+v5_95_Feb07_1_3 <- as.data.frame(cbind(red3[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_3"], red_back3[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_3"], green3[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_3"], green_back3[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_3"]))
 colnames(v5_95_Feb07_1_3) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
 v5_95_Feb07_1_3_row <- v5_95_Feb07_1_3 %>% rownames_to_column("Row")
 
-v5_95_Feb07_1_4 <- as.data.frame(cbind(red[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
+v5_95_Feb07_1_4 <- as.data.frame(cbind(red4[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_4"], red_back4[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_4"], green4[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_4"], green_back4[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]))
 colnames(v5_95_Feb07_1_4) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
 v5_95_Feb07_1_4_row <- v5_95_Feb07_1_4 %>% rownames_to_column("Row")
+```
 
-test<-inner_join(v5_95_Feb07_1_1_row, Sequence_probs, by = "Row")
- write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_1_corrected", delim = "\t", na = "NA", append = FALSE)
+```{r}
+v5_95_Feb07_1_1_row
+v5_95_Feb07_1_2_row 
+v5_95_Feb07_1_3_row 
+v5_95_Feb07_1_4_row 
+all_equal(v5_95_Feb07_1_4_row ,v5_95_Feb07_1_3_row )
+identical(as.matrix(v5_95_Feb07_1_1_row), as.matrix(v5_95_Feb07_1_2_row))
+identical(as.matrix(v5_95_Feb07_1_1_row), as.matrix(v5_95_Feb07_1_3_row))
+identical(as.matrix(v5_95_Feb07_1_1_row), as.matrix(v5_95_Feb07_1_4_row))
+
+identical(as.matrix(v5_95_Feb07_1_2_row), as.matrix(v5_95_Feb07_1_1_row))
+identical(as.matrix(v5_95_Feb07_1_2_row), as.matrix(v5_95_Feb07_1_3_row))
+identical(as.matrix(v5_95_Feb07_1_2_row), as.matrix(v5_95_Feb07_1_4_row))
+
+identical(as.matrix(v5_95_Feb07_1_3_row), as.matrix(v5_95_Feb07_1_1_row))
+identical(as.matrix(v5_95_Feb07_1_3_row), as.matrix(v5_95_Feb07_1_2_row))
+identical(as.matrix(v5_95_Feb07_1_3_row), as.matrix(v5_95_Feb07_1_4_row))
+
+identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_1_row))
+identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_2_row))
+identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_3_row))
+```
+```{r}
+Sequence_probs$Row %>% length()
+Sequence_probs$Row %>% unique() %>% length()
+v5_95_Feb07_1_1_row$Row %>%  length()
+v5_95_Feb07_1_1_row$Row %>%  unique() %>% length()
+```
+
+```{r}
+test<- merge(v5_95_Feb07_1_1_row, Sequence_probs)
+ write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_1_corrected.txt", delim = "\t", na = "NA", append = FALSE)
+```
+
+
+
+```{r}
+test<- merge(v5_95_Feb07_1_1_row, Sequence_probs)
+ write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_1_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 test2<-inner_join(v5_95_Feb07_1_2_row, Sequence_probs, by = "Row")
-write_delim(test2, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_2_corrected", delim = "\t", na = "NA", append = FALSE)
+write_delim(test2, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_2_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 test3<-inner_join(v5_95_Feb07_1_3_row, Sequence_probs, by = "Row")
-write_delim(test3, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_3_corrected", delim = "\t", na = "NA", append = FALSE)
+write_delim(test3, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_3_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 test4<-inner_join(v5_95_Feb07_1_4_row, Sequence_probs, by = "Row")
-write_delim(test4, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_4_corrected", delim = "\t", na = "NA", append = FALSE)
+write_delim(test4, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_4_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 
 
 Accesion <- c("10031", "10031" , "10031" ,"10031")
 Cy3 <- c("Control","Control","Control","Control")
 Cy5 <- c("Infected", "Infected","Infected","Infected")
-Filename <- c("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_1_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_2_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_3_corrected","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031 2 uncom tif_GE2-v5_95_Feb07_1_4_corrected")
+Filename <- c("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_1_corrected.txt","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_2_corrected.txt","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_3_corrected.txt","~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_4_corrected.txt")
 target_test <- data.frame(Cy3, Cy5, Accesion, Filename)
+```
+
+```{r}
+read.delim(target_test$Filename[1])
+read.delim(target_test$Filename[2])
+read.delim(target_test$Filename[3])
+read.delim(target_test$Filename[4])
+```
 
 
- RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
+```{r}
+RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
 study$Array.Data.File
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
-    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="none", weights = NULL)
     modelMatrix(target_test, ref = 'Control') -> design
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
-    fit2.1 <- eBayes(fit.1)
+    fit2.1 <- eBayes(fit.1, robust = TRUE)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    ?topTable
+    ? lmFit
+    ?eBayes
+    ?normalizeWithinArrays
+    
+    diffexp 
+```
+
+```{r}
+
 ```
 
 
