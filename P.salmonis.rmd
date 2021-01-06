@@ -406,7 +406,7 @@ read.delim(target_test$Filename[4])
 
 
 ```{r}
-RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ProbeName", "SequenceID"))
+RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Reporter Name", "Reporter Sequence"))
 study$Array.Data.File
 RG.bc2      <-backgroundCorrect(RG,method="normexp")
     RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="none", weights = NULL)
