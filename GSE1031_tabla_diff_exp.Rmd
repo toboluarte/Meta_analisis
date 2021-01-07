@@ -1,0 +1,64 @@
+---
+title: "GSE1031"
+output: html_notebook
+---
+
+
+```{r}
+library("GEOquery")
+library("tidyverse")
+```
+
+```{r}
+getGEOfile("GSE1031", destdir = getwd())
+Soft <- getGEO(filename ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSE1031.soft.gz")
+Soft %>% str()
+asd <- getGEO("GSE1031")
+pData(asd)
+GSM16389<-Soft@gsms$GSM16389@dataTable@table
+GSM16101<-Soft@gsms$GSM16101@dataTable@table
+GSM16390<-Soft@gsms$GSM16390@dataTable@table
+GSM16391<-Soft@gsms$GSM16391@dataTable@table
+Soft@gsms$GSM16391@dataTable@table %>% colnames()
+```
+
+
+```{r}
+GSM16389_final<- GSM16389 %>% select(c("CH1_MEAN", "CH1 Background Median", "CH2 Background Median", "CH2_MEAN", "ID_REF")) 
+GSM16101_final<- GSM16101%>% select(c("CH1_MEAN", "CH1 Background Median", "CH2 Background Median", "CH2_MEAN", "ID_REF")) 
+GSM16390_final<- GSM16390 %>% select(c("CH1_MEAN", "CH1 Background Median", "CH2 Background Median", "CH2_MEAN", "ID_REF")) 
+GSM16391_final <-GSM16391 %>% select(c("CH1_MEAN", "CH1 Background Median", "CH2 Background Median", "CH2_MEAN", "ID_REF")) 
+names(GSM16101_final) <-c( "verde_forward", "verde_background", "rojo_background","rojo_forward", "ID")
+names(GSM16389_final) <-c( "verde_forward", "verde_background", "rojo_background","rojo_forward", "ID")
+names(GSM16390_final) <-c( "verde_forward", "verde_background", "rojo_background","rojo_forward", "ID")
+names(GSM16391_final) <-c( "verde_forward", "verde_background", "rojo_background","rojo_forward", "ID")
+annotations<- e.set@featureData@data %>% select(matches("UniGene.ID|^ID$|GenBank.Accession"))
+GSM16101_final <- merge(GSM16101_final, annotations)
+GSM16389_final <- merge(GSM16389_final, annotations)
+GSM16390_final <- merge(GSM16390_final, annotations)
+GSM16391_final <- merge(GSM16391_final, annotations)
+FileName <- c("/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16101.txt","/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16389.txt","/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16390.txt","/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16391.txt")
+hola <- targets %>% filter(name == "GSE1031")
+target_ok <-data.frame( Cy3 = hola$Cy3 ,Cy5 = hola$Cy5, geo_accession = hola$geo_accession, FileName)
+write_delim(GSM16101_final, path="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16101.txt", delim = "\t", na = "NA", append = FALSE)
+write_delim(GSM16389_final, path="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16389.txt", delim = "\t", na = "NA", append = FALSE)
+write_delim(GSM16390_final, path="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16390.txt", delim = "\t", na = "NA", append = FALSE)
+write_delim(GSM16391_final, path="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSM16391.txt", delim = "\t", na = "NA", append = FALSE)
+
+```
+
+
+
+```{r}
+RG          <- read.maimages(target_ok ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("UniGene ID", "ID", "GenBank Accession")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+    RG.bc2      <-backgroundCorrect(RG,method="normexp")
+    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
+    modelMatrix(target_ok, ref = 'control') -> design
+    fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
+    fit2.1 <- eBayes(fit.1)
+    diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+```
+```
+
+
+

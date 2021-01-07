@@ -1,0 +1,51 @@
+---
+title: "GPL for Blast"
+output: html_notebook
+---
+. 
+GSE 1031 -> GPL966
+
+E-MTAB-685->
+
+GSE43255 -> GPL8904 	
+```{r}
+Pulgar <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
+Tacchi <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi.csv")
+Rise <- read_csv ("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise.csv")
+
+```
+```{r}
+names(Tacchi)<- c("Reporter.Name","Sequence","logFC","CI.L", "CI.R","AveExpr","t", "P.Value","adj.P.Val", "B")      
+Tacchi_withseq <-Tacchi
+```
+
+```{r}
+Pulgar_eset <-getGEO("GSE43255", AnnotGPL = TRUE, getGPL = TRUE)[[1]]
+Rise_eset <-getGEO("GSE1031", AnnotGPL = TRUE, getGPL = TRUE)[[1]]
+
+```
+
+```{r}
+Pulgar_GB_Sequence<- Pulgar_eset %>% fData() %>% select(c("GB_ACC", "SEQUENCE"))
+names(Pulgar_GB_Sequence) <- c("Name", "Sequence")
+Pulgar_withseq<- merge(Pulgar, Pulgar_GB_Sequence)
+```
+
+
+```{r}
+Rise_eset %>% fData()
+read.delim("/home/alejandro/Documentos/Meta_analisis_teleosteos/GPL966.annot", skip = 28, delim = '/t' )
+dataseq<- fread(file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Secuencia.html", sep = '\t', skip = 'ID')
+dataseq %<>% select(matches(">ID<|*SEQUENCE*"))  
+names(dataseq) <- c("ID", "Sequence")
+Rise_withseq<- merge(Rise, dataseq)
+```
+
+```{r}
+write_csv(Pulgar_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias.csv")
+write_csv(Rise_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise_conSecuencias.csv")
+write_csv(Tacchi_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi_conSecuencias.csv")
+```
+
+
+

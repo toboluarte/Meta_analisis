@@ -21,7 +21,7 @@ list_con_eset_filtrados <- list()
 RDS <- readRDS(pth)
 b <- RDS %>% names()
 for (i in 1:length(b)) {
-  if (b[i] == "GSE1012" | b[i] == "GSE1031") {
+  if ( b[i] == "GSE1031") {
     RDS[[i]] -> mi.gse
     pData(mi.gse) %>%
       filter(str_detect(source_name_ch1, "(?i)Non-infected|Piscirickettsia") & str_detect(source_name_ch2, "(?i)Non-infected|(?i)Piscirickettsia")) %>%
