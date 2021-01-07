@@ -250,13 +250,14 @@ colnames(target.ok)[6] <- c("FileName")
 ```
 Blast contra los GPL.
 ```{r}
-RG          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
-    RG.bc2      <-backgroundCorrect(RG,method="normexp")
-    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="loess", weights = NULL)
-    modelMatrix(target.ok, ref = 'control') -> design
-    fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
-    fit2.1 <- eBayes(fit.1)
-    diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+RG_Pulgar          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+    RG.bc2_Pulgar      <-backgroundCorrect(RG_Pulgar,method="normexp")
+    RG.bc2.norm_Pulgar <- normalizeWithinArrays(RG.bc2_Pulgar, method="loess", weights = NULL)
+    modelMatrix(target.ok, ref = 'control') -> design_Pulgar
+    fit.1_Pulgar  <- lmFit(RG.bc2.norm_Pulgar,  design_Pulgar %>% as.matrix())
+    fit2.1_Pulgar <- eBayes(fit.1_Pulgar)
+    diffexp_Pulgar            <- topTable(fit2.1_Pulgar, coef = colnames(design_Pulgar),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
 ```
 
 
@@ -328,7 +329,7 @@ Sequence_probs$Row %<>% as.character()
 
 v5_95_Feb07_1_1 <- as.data.frame(cbind(red1[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], red_back1[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green1[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"], green_back1[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]))
 colnames(v5_95_Feb07_1_1) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
-v5_95_Feb07_1_1_row <- v5_95_Feb07_1_1 %>% rownames_to_column("Row") %>%
+v5_95_Feb07_1_1_row <- v5_95_Feb07_1_1 %>% rownames_to_column("Row") 
 
 v5_95_Feb07_1_2 <- as.data.frame(cbind(red2[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], red_back2[,"10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], green2[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_2"], green_back2[, "10031 2 uncom tif_GE2-v5_95_Feb07_1_2"]))
 colnames(v5_95_Feb07_1_2) <- c("rojo_forward", "rojo_background", "verde_forward", "verde_background")
@@ -375,13 +376,6 @@ v5_95_Feb07_1_1_row$Row %>%  unique() %>% length()
 ```{r}
 test<- merge(v5_95_Feb07_1_1_row, Sequence_probs)
  write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_1_corrected.txt", delim = "\t", na = "NA", append = FALSE)
-```
-
-
-
-```{r}
-test<- merge(v5_95_Feb07_1_1_row, Sequence_probs)
- write_delim(test, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_1_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 test2<-inner_join(v5_95_Feb07_1_2_row, Sequence_probs, by = "Row")
 write_delim(test2, path= "~/Documentos/Meta_analisis_teleosteos/Meta_analisis/10031_2_uncom_tif_GE2-v5_95_Feb07_1_2_corrected.txt", delim = "\t", na = "NA", append = FALSE)
 test3<-inner_join(v5_95_Feb07_1_3_row, Sequence_probs, by = "Row")
@@ -418,8 +412,9 @@ RG.bc2      <-backgroundCorrect(RG,method="normexp")
     ? lmFit
     ?eBayes
     ?normalizeWithinArrays
-    
-    diffexp 
+    RG.bc2.norm$A
+    diffexp
+    write_csv(diffexp, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi.csv")
 ```
 
 ```{r}

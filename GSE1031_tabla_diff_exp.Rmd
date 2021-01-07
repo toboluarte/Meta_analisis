@@ -10,6 +10,8 @@ library("tidyverse")
 ```
 
 ```{r}
+
+ ### GPL966 
 getGEOfile("GSE1031", destdir = getwd())
 Soft <- getGEO(filename ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Test GSE1031/GSE1031.soft.gz")
 Soft %>% str()
@@ -57,6 +59,7 @@ RG          <- read.maimages(target_ok ,source = "generic", columns = list(R= "r
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
     fit2.1 <- eBayes(fit.1)
     diffexp            <- topTable(fit2.1, coef = colnames(design),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise.csv")
 ```
 ```
 
