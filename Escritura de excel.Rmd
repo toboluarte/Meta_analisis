@@ -47,5 +47,140 @@ write_csv(Rise_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Res
 write_csv(Tacchi_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi_conSecuencias.csv")
 ```
 
+```{r}
+Pulgar_Blast <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias.csv")
+Tacchi_Blast <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi_conSecuencias.csv")
+Rise_Blast <- read_csv ("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise_conSecuencias.csv")
+```
+Pulgar blast
+```{r}
+library(seqinr)
 
+Pulgar_Blast$ID  -> IDs_pulgar
+Pulgar_Blast$Sequence -> Sequence_pulgar
+
+for(j in 1:length(IDs_pulgar)){
+  write.fasta(Sequence_pulgar[j], IDs_pulgar[j], 'FASTAs/Pulgar.fasta', open = "a", as.string = FALSE)
+}
+```
+
+
+```{bash}
+cd /home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar
+blastn -query Pulgar.fasta  -db Ssalar.fna -num_threads 8 -task blastn -outfmt "6 qseqid sseqid evalue bitscore" -max_target_seqs 1 -out RL_Pulgar_output
+```
+
+```{r}
+Pulgar_output <-read_delim("/home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar/RL_Pulgar_output", delim = '\t', col_names = FALSE)
+Pulgar_output %>% mutate(mRNA = str_extract(X2, "[A-Z]?(M|R)_[0-9]+")) -> Pulgar_output_mRNA
+```
+
+Rise Fasta
+```{r}
+Rise_Blast$ID -> IDs_Rise
+Rise_Blast$Sequence -> Sequence_Rise
+for(j in 1:length(IDs_Rise)){
+  write.fasta(Sequence_Rise[j], IDs_Rise[j], 'FASTAs/Rise.fasta', open = "a", as.string = FALSE)
+}
+
+```
+
+```{bash}
+cd /home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar
+blastn -query Rise.fasta  -db Ssalar.fna -num_threads 16 -task blastn -outfmt "6 qseqid sseqid evalue bitscore" -max_target_seqs 1 -out RL_Rise_output
+```
+```{r}
+Rise_output <-read_delim("/home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar/RL_Rise_output", delim = '\t', col_names = FALSE)
+Rise_output %>% mutate(mRNA = str_extract(X2, "[A-Z]?(M|R)_[0-9]+")) -> Rise_output_mRNA
+```
+
+Tacchi Fasta
+```{r}
+Tacchi_Blast$Reporter.Name -> IDs_Tacchi
+Tacchi_Blast$Sequence-> Sequence_Tacchi
+for(j in 1:length(IDs_Tacchi)){
+  write.fasta(Sequence_Tacchi[j], IDs_Tacchi[j], 'FASTAs/Tacchi.fasta', open = "a", as.string = FALSE)
+}
+```
+
+```{bash}
+cd /home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar
+blastn -query Tacchi.fasta  -db Ssalar.fna -num_threads 16 -task blastn -outfmt "6 qseqid sseqid evalue bitscore" -max_target_seqs 1 -out RL_Tacchi_output
+```
+
+```{r}
+Tacchi_output <-read_delim("/home/alejandro/Documentos/Microarrays/DataBases_for_blastn/Ssalar/RL_Tacchi_output", delim = '\t', col_names = FALSE)
+Tacchi_output %>% mutate(mRNA = str_extract(X2, "[A-Z]?(M|R)_[0-9]+")) -> Tacchi_output_mRNA
+Tacchi_output_mRNA$mRNA
+
+```
+
+```{r message=FALSE, warning=FALSE}
+library(biomaRt)
+listMarts()
+#ensembl <- useMart("genbank")
+#searchDatasets(mart = ensembl, pattern = "salar")
+Ss.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+listAttributes(Ss.ensembl)
+```
+
+```{r}
+searchAttributes(mart = Ss.ensembl, pattern = 'symbo')
+```
+
+```{r}
+mRNA_Tacchi      =   Tacchi_output_mRNA$mRNA
+found_Tacchi= 
+  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Ss.ensembl)
+Tacchi_full_output<- inner_join(Tacchi_output_mRNA, found_Tacchi, by = c("mRNA" = "refseq_mrna_predicted"))
+Tacchi_full_output_diffexp<- inner_join(Tacchi_full_output, Tacchi_Blast, by = c("X1" = "Reporter.Name"))  
+Tacchi_for_meta_analisis <-Tacchi_full_output_diffexp %>% dplyr::select(c("mRNA", "uniprot_gn_symbol","entrezgene_description", "logFC", "CI.L", "CI.R", "adj.P.Val"))
+found_Tacchi_justid= 
+  getBM(attributes=c('entrezgene_id','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA_Tacchi, mart = Ss.ensembl)
+Tacchi_for_meta_analisis <- inner_join(Tacchi_for_meta_analisis, found_Tacchi_justid, by = c("mRNA"= 'refseq_mrna_predicted') )
+```
+
+```{r}
+mRNA_Pulgar      =   Pulgar_output_mRNA$mRNA
+found_Pulgar= 
+  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Ss.ensembl)
+Pulgar_full_output<- inner_join(Pulgar_output_mRNA, found_Pulgar, by = c("mRNA" = "refseq_mrna_predicted"))
+Pulgar_full_output_diffexp<- inner_join(Pulgar_full_output, Pulgar_Blast, by = c("X1" = "ID"))  
+Pulgar_for_meta_analisis <-Pulgar_full_output_diffexp %>% dplyr::select(c("mRNA", "uniprot_gn_symbol","entrezgene_description", "logFC", "CI.L", "CI.R", "adj.P.Val"))
+found_Pulgar_justid= 
+  getBM(attributes=c('entrezgene_id','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA_Pulgar, mart = Ss.ensembl)
+Pulgar_for_meta_analisis <- inner_join(Pulgar_for_meta_analisis, found_Pulgar_justid, by = c("mRNA"= 'refseq_mrna_predicted') )
+```
+
+```{r}
+mRNA_Rise      =   Rise_output_mRNA$mRNA
+found_Rise= 
+  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol', 'refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Ss.ensembl)
+Rise_full_output<- inner_join(Rise_output_mRNA, found_Rise, by = c("mRNA" = "refseq_mrna_predicted"))
+Rise_full_output_diffexp<- inner_join(Rise_full_output, Rise_Blast, by = c("X1" = "ID"))  
+Rise_for_meta_analisis <-Rise_full_output_diffexp %>% dplyr::select(c("mRNA", "uniprot_gn_symbol","entrezgene_description", "logFC", "CI.L", "CI.R", "adj.P.Val"))
+found_Rise_justid= 
+  getBM(attributes=c('entrezgene_id','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA_Rise, mart = Ss.ensembl)
+Rise_for_meta_analisis <- inner_join(Rise_for_meta_analisis, found_Rise_justid, by = c("mRNA"= 'refseq_mrna_predicted') )
+
+
+```
+```{r}
+BiocManager::install("MetaVolcanoR", eval = FALSE)
+```
+
+```{r}
+library(MetaVolcanoR)
+All_authors_for_meta<- list(Rise_for_meta_analisis, Pulgar_for_meta_analisis, Tacchi_for_meta_analisis)
+All_authors_for_meta %<>% set_names(c("Rise","Pulgar","Tacchi"))
+
+meta_degs_combining <- combining_mv(diffexp = All_authors_for_meta, metathr=1,metafc = "Mean", collaps = TRUE, pcriteria='adj.P.Val',foldchangecol='logFC', genenamecol='entrezgene_description', geneidcol = "entrezgene_id")
+combining_mv
+
+meta_degs_votecount <- votecount_mv(diffexp=All_authors_for_meta,pcriteria='adj.P.Val', foldchangecol='logFC',genenamecol='entrezgene_description',geneidcol="entrezegene_id",pvalue=0.05,foldchange=0,metathr=1,collaps=TRUE)
+
+meta_degs_rem   <-   rem_mv(diffexp = All_authors_for_meta, pcriteria = "adj.P.Val",foldchangecol = "logFC", genenamecol = "entrezgene_description", geneidcol = "entrezegene_id",collaps = TRUE, llcol = "CI.L", rlcol = "CI.R", vcol = TRUE,cvar = TRUE, metathr = 1)
+?rem_mv
+
+```
 

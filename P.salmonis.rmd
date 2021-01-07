@@ -4,7 +4,7 @@ output: html_notebook
 ---
 ```{r}
 library(easypackages)
-librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA", "data.table", "ArrayExpress", "SRAdb")
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA", "data.table", "ArrayExpress", "SRAdb","seqinr","MetaVolcanoR")
 libraries(librerias)
 ```
 
@@ -49,9 +49,6 @@ list_con_eset_filtrados %>%
 ```{r}
 list_con_eset_filtrados$GSE1031 -> un_estudio 
 un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% select(matches('geo')|matches('cy')) -> GSE1031 
-
-list_con_eset_filtrados$GSE1012 -> un_estudio 
-un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'(?i).*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'(?i).*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) -> GSE1012
 
 list_con_eset_filtrados$GSE43255 -> un_estudio 
 un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1) %>%unite("Cy5", source_name_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*challenged.*', 'infected')) %>% mutate_at("Cy5",~str_replace(.,'.*control.*', 'control')) %>% select(matches('geo')|matches('cy'))->GSE43255
