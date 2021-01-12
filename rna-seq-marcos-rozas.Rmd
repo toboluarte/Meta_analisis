@@ -1,0 +1,133 @@
+---
+title: "Rna-seq Marcos Rozas"
+output: html_notebook
+---
+ 
+Lo que encontraremos en las bases de datos publicas generalmente seran las lecturas crudas, estas lecturas por lo general se encuentran en el formato ".sra" los que deben ser cconvertidos a formato ".fastq".
+El siguiente paso es descargar los genomas de referencia, los que estaran disponibles en distintas bases de datos como NCBI, ENSEMBL o UCSC y construir el indice 
+La forma util de referirse a los genomas, es su visualizacion, es decir, los "assembly", estos archivos generalmente se encuentran en bases de datos publicas en servidores FTP. Para obtener los archivos que estan en estos servidores FTP podremos descargarlos 1-1 pero se podria volver tedioso dependiendo del genoma con el que nos encontremos. Por lo anterior existe la utilidad de trabajar con la consola de comandos ya que podremos usar metodos como wget o rsync.
+En mi caso se descargara el assembly de Salmo Salar disponible en este enlace https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/233/375/GCF_000233375.1_ICSASG_v2/ 
+y se descargaran los archivos utilizando el siguiente comando 
+```{bash}
+rsync --copy-links --times --verbose --recursive rsync://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/233/375/GCF_000233375.1_ICSASG_v2/ ./Salmo-Salar
+
+```
+Este comando descargara todos los archivos del servidor FTP en un directorio que sera llamado Salmo-Salar.
+Recordar que es necesario cambiar el protocolo "https" por "rsync" al momento de copiar el enlace.
+Es interesante recalcar las posibilidades que ofrece este comando, sobre todo con la opciones --exclude y --include para descargas masivas de datos.
+
+Para continuar, debemos descargar los datos correspondientes al experimento o experimentos que deseamos analizar los datos crudos.
+Para lo anterior nos dirigimos a NCBI y seleccionamos la base de datos SRA (hay muchas otras bases de datos que pueden ser utiles)
+para esto instalaremos el sra-toolkit de ncbi en nuestro computador, el cual nos permitira hacer descargas y una serie de cosas utiles.
+```{bash}
+#Download the file for ubuntu system
+wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.4.1/sratoolkit.2.4.1-ubuntu64.tar.gz
+# Unzip the archive
+tar xzvf sratoolkit.2.4.1-ubuntu64.tar.gz
+```
+Para no tener que entregar la ruta de instalacion cada vez que queramos utilizar uno de los scripts de esta "caja de herramientas", podremos modificar nuestro archivo .bashrc para entregarle una ruta directa.
+```{bash}
+## Este paso es opcional y solo para agilizar algunas cosas
+vim .bashrc
+export PATH=$PATH:/directory/sratoolkit.2.4.1-ubuntu64/bin #Esto es un directorio de ejemplo.
+```
+Luego, debemos encontrar los codigos SRR de nuestro interes en mi caso estos seran :SRR6415118,SRR6415119,SRR6415120,SRR6415121,SRR6415122
+Recordar que podemos encontrar estos codigos buscando en SRA de NCBI y clickeando cada uno de los codigos de nuestro interes.
+```{bash}
+#Descarga de los archivos .sra de nuestro interes utilizando el programa de SRA-toolkit "prefetch" 
+prefetch -p SRR6415118
+prefetch -p SRR6415119
+prefetch -p SRR6415120
+prefetch -p SRR6415121
+prefetch -p SRR6415122
+#la opcion -p nos indicara el progreso de la descarga y podemos entregarle una ruta para que no genere carpetas innecesarias 
+```
+Los comandos anteriores generaran una carpeta de nombre ncbi donde estaran nuestras descargas.
+Cabe destacar que el formato en el que vienen estos archivos no es util para nuestros propositos por lo que se utilizara el programa fastq-dump para transformarlos en fastq
+
+```{bash}
+fastq-dump SRR6415118
+fastq-dump SRR6415119
+fastq-dump SRR6415120
+fastq-dump SRR6415121
+fastq-dump SRR6415122
+# si nos encontramos en la carpeta en la que se realizo la descarga de los archivos podemos utilizar simplemente.
+fastq-dump SRR*
+```
+Alternativamente existe un paquete de bioconda llamado pysardb que nos permitiran hacer multiples descargas, o descargas de proyectos enteros con us metadata correspondiente : https://github.com/saketkc/pysradb. Tambien existe el paquete de R "geomedb" https://www.rdocumentation.org/packages/geomedb/versions/2.0.1/topics/prefetch
+
+Para continuar con nuestro analisis deberemos instalar el paquete Rsubread utilizando bioconductor e importar la libreria, la que nos permitira hacer alineamientos
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("Rsubread")
+library(Rsubread)
+```
+Por razones de comodidad juntaremos todos los archivos .fastq que generamos con el programa fastq-dump en una carpeta que llamaremos "data" en nuestro directorio de trabajo y listaremos los archivos existentes.
+```{r}
+#Recordar que el path cambiara segun cada working directory.
+fastq.files <- list.files(path = "/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data",pattern = "*.fastq$", full.names = TRUE)
+fastq.files
+```
+Antes de proceder con el analisis de expresion diferencial los sequence reads deben ser alineados con el genoma del salmon (en este caso).
+El primer paso es construir un indice, que contemple todos los cromosomas, para este caso tendremos que construir un indice para 29 cromosomas. para lo anterior necesitamos tener los archivos ".fna.gz" obtenidos utilizando rsync en pasos anteriores. Cabe destacar que es util leer los archivos README.txt ya que estos contienen la estrucutra de datos de los Assemblies. Para nuestro caso estos archivos se llaman chrssa01-29.fna.gz respectivamente para cada cromosoma.
+Nuevamente es recomendable que los archivos esten agrupados en la carpeta "data"
+Esto puede tomar bastante tiempo de procesamiento.
+```{r}
+buildindex(basename="chr1_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa01.fna")
+buildindex(basename="chr2_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa02.fna")
+buildindex(basename="chr3_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa03.fna")
+buildindex(basename="chr4_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa04.fna")
+buildindex(basename="chr5_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa05.fna")
+buildindex(basename="chr6_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa06.fna")
+buildindex(basename="chr7_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa07.fna")
+buildindex(basename="chr8_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa08.fna")
+buildindex(basename="chr9_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa09.fna")
+buildindex(basename="chr10_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa10.fna")
+buildindex(basename="chr11_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa11.fna")
+buildindex(basename="chr12_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa12.fna")
+buildindex(basename="chr13_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa13.fna")
+buildindex(basename="chr14_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa14.fna")
+buildindex(basename="chr15_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa15.fna")
+buildindex(basename="chr16_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa16.fna")
+buildindex(basename="chr17_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa17.fna")
+buildindex(basename="chr18_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa18.fna")
+buildindex(basename="chr19_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa19.fna")
+buildindex(basename="chr20_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa20.fna")
+buildindex(basename="chr21_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa21.fna")
+buildindex(basename="chr22_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa22.fna")
+buildindex(basename="chr23_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa23.fna")
+buildindex(basename="chr24_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa24.fna")
+buildindex(basename="chr25_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa25.fna")
+buildindex(basename="chr26_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa26.fna")
+buildindex(basename="chr27_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa27.fna")
+buildindex(basename="chr28_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa28.fna")
+buildindex(basename="chr29_ssa1",reference="/home/tobo/Documents/Practica profesional/proyecto/Marcos-rozas/data/chrssa29.fna")
+
+```
+Ahora que tenemos nuestro indice, podemos alinear nuestros reads usando el comando align, por lo general los parametros por defecto funcionan bien, sin embargo, existe una gran cantidad de estos.
+Recordar que podemos modificar el numero de hilos de procesamiento, segun la disponibilidad del computador utilizado.
+
+```{r}
+align(index="./data/ssa1",readfile1=fastq.files, nthreads =4)
+```
+Para resumir los resultados del alineamiento primero listaremos los archivos de salida con extension ".bam", esta salida esta por defecto y es modificable de la funcion align
+```{r}
+bam.files <- list.files(path = "./data", pattern = ".BAM$", full.names = TRUE)
+bam.files
+```
+Luego utilizaremos la funcion propmapped para un resumen de los resultados
+```{r}
+props <- propmapped(files=bam.files)
+props
+```
+Para el control de calidad podemos utilizar la funcion "qualitiyScores", donde un score de 30 corresponde a la probabilidad de 1/1000 de una base incorrecta
+```{r}
+qs <- qualityScores(filename="data/SRR1552450.fastq.gz",nreads=100)
+dim(qs)
+head(qs)
+boxplot(qs)
+```
+Conteo 
+
