@@ -43,7 +43,7 @@ prefetch -p SRR6415122
 #la opcion -p nos indicara el progreso de la descarga y podemos entregarle una ruta para que no genere carpetas innecesarias 
 ```
 Los comandos anteriores generaran una carpeta de nombre ncbi donde estaran nuestras descargas.
-Cabe destacar que el formato en el que vienen estos archivos no es util para nuestros propositos por lo que se utilizara el programa fastq-dump para transformarlos en fastq
+Cabe destacar que el formato en el que vienen estos archivos no es util para nuestros propositos por lo que se utilizara el programa fastq-dump para transformarlos en fastq #PRJNA422303 es el codigo del experimento.
 
 ```{bash}
 fastq-dump SRR6415118
@@ -110,7 +110,7 @@ Ahora que tenemos nuestro indice, podemos alinear nuestros reads usando el coman
 Recordar que podemos modificar el numero de hilos de procesamiento, segun la disponibilidad del computador utilizado.
 
 ```{r}
-align(index="./data/ssa1",readfile1=fastq.files, nthreads =4)
+align(index="./data/ssa1",readfile1=fastq.files, nthreads =4) 
 ```
 Para resumir los resultados del alineamiento primero listaremos los archivos de salida con extension ".bam", esta salida esta por defecto y es modificable de la funcion align
 ```{r}
@@ -119,7 +119,7 @@ bam.files
 ```
 Luego utilizaremos la funcion propmapped para un resumen de los resultados
 ```{r}
-props <- propmapped(files=bam.files)
+props <- propmapped(files=bam.files) 
 props
 ```
 Para el control de calidad podemos utilizar la funcion "qualitiyScores", donde un score de 30 corresponde a la probabilidad de 1/1000 de una base incorrecta
@@ -129,5 +129,16 @@ dim(qs)
 head(qs)
 boxplot(qs)
 ```
-Conteo 
+Conteo:
+Ahora que hemos descubierto de donde viene cada lectura en el genoma, necesitamos resumir la informacion a traves de los genes o exones.
+El alineamiento produce un ser de archivos con extension ".BAM", los que contienen las lecturas alineadas para cada libreria. en el archivo BAM existe la locacion del cromosoma para cada lectura que mapea de manera unica. Estas lecturas mapeadas pueden ser contadas a traves de los genes del salmon utilizando la funcion featureCounts, esta funcion tiene dentor de si anotaciones para lo assemblies de raton mm9 y mm10 y de humano hg19.
+```{r}
+fc <- featureCounts(bam.files, annot.inbuilt="mm10")
+?featureCounts
+```
+
+
+```{r}
+
+```
 
