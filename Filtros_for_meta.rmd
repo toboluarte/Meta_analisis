@@ -1,0 +1,50 @@
+---
+title: "Filtros_for_meta_analisis"
+output: html_notebook
+---
+Cargaremos todas las librerias necesarias para hacer los analisis y utilizaremos la libreria easypackages que nos permite ordenarlos de mejor manera
+```{r}
+library(easypackages)
+librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach","tidyverse", "xlsx","Hmisc", "tidyverse", "PAA", "data.table", "ArrayExpress", "SRAdb","seqinr","MetaVolcanoR")
+libraries(librerias)
+```
+Declaramos las rutas en las que vamos a guardar los archivos que saldran del analisis
+```{r}
+GSEs_formeta <- file.path(getwd(), "mis_gse_formeta.rds")
+```
+Generamos una funcion que permita descargar multiples codigos GSE a la vez y los guardamos como un RDS en una de las rutas asignadas previamente.
+```{r}
+my_getGEO <- function (codigo_gse){
+  try(getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data)
+  try(my.gse.data %<>% names %>% str_extract('GSE\\d+(-GPL\\d+)?') %>% set_names(my.gse.data,.))
+  return(my.gse.data)}
+mis.codigos.gse <- c('GSE1031','GSE43255')
+mis_gse_data_1 <- map(mis.codigos.gse, my_getGEO) %>% unlist 
+saveRDS(mis_gse_data_1, GSEs_formeta)
+```
+Leemos el archivo RDS guardado en el paso anterior para comenzar a filtrar correctamente cada uno de los estudios 
+```{r}
+RDS_formeta <- readRDS(GSEs_formeta)
+```
+Para el GSE43255 se consideraran los salmones high y low sensitive, como individuos iguales. Ademas ya que solamente se toman muestras de la cabeza del rinon, no se excluira ningun GSM
+```{r}
+pData(RDS_formeta$GSE43255)
+```
+Recordar que el estudio de Rise contenia 2 GSE, de los cuales fue excluido el GSE1012, puesto que contenia los GSM's correspondientes a los macrofagos infectados, datos que no son de nuestro interes. Por el contrario el GSE1031 solo GSM's de cabeza de rinon infectados con P.salmonis
+```{r}
+pData(RDS_formeta$GSE1031)
+```
+Filtrado de array express incluido en el estudio:
+```{r}
+## No funciona Duplicate row names are not allowed
+?ArrayExpress
+emtab<- getAE(accession = "E-MTAB-685", type = "full")
+expr < - ae2bioc(mageFiles=emtab)
+getcolproc(emtab)
+procset(emtab)
+print(emtab)
+sampleNames(emtab)
+colnames(pData(emtab))
+```
+
+
