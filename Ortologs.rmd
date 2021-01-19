@@ -1,0 +1,37 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+>NP_001116996.1 serine/threonine protein kinase RAF1c [Salmo salar]
+>NP_001116997.1 actin, cytoplasmic 1 [Salmo salar]
+>NP_001116999.1 60S ribosomal protein L18a [Salmo salar]
+>NP_001117000.1 thyrotropin subunit beta precursor [Salmo salar]
+>NP_001117001.1 fork head domain protein [Salmo salar]
+>NP_001117002.1 fast myotomal muscle troponin-T [Salmo salar]
+>NP_001117003.1 ribosomal protein S15 [Salmo salar]
+>NP_001117004.1 heat shock protein HSP 90-beta [Salmo salar]
+
+XM_014144436
+XM_014168710	
+XM_014136366
+XM_014155454
+```{r}
+library(biomaRt)
+
+#ensembl <- useMart("genbank")
+#searchDatasets(mart = ensembl, pattern = "salar")
+Ss.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+listAttributes(Ss.ensembl)
+```
+
+```{r}
+searchAttributes(mart = Ss.ensembl, pattern = 'refseq')
+searchAttributes(mart = Ss.ensembl, pattern = 'protein_id')
+```
+
+```{r}
+mRNA_vector <- c("XM_014144436","XM_014168710","XM_014136366","XM_014155454", "XM_014155454","XM_014131411","XM_014146182","XM_014144014","XM_014159954")
+getBM(attributes=c('refseq_peptide','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values =mRNA_vector , mart = Ss.ensembl)
+
+```
+
