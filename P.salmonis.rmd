@@ -10,61 +10,53 @@ libraries(librerias)
 
 ```{r}
 #Rutas de guardado y lectura
-pth <- file.path(getwd(), "mis_gse_data_1.rds")
 path <- file.path(getwd(), "mis_target.psalmonis.rds")
 saving <- file.path(getwd(), "tabla_targets_p_salmonis.rds")
+GSEs_formeta <- file.path(getwd(), "mis_gse_formeta.rds")
 ```
-
+Funciones utilizadas
 ```{r}
-titulos <- data.frame()
-list_con_eset_filtrados <- list()
-RDS <- readRDS(pth)
-b <- RDS %>% names()
-for (i in 1:length(b)) {
-  if ( b[i] == "GSE1031") {
-    RDS[[i]] -> mi.gse
-    pData(mi.gse) %>%
-      filter(str_detect(source_name_ch1, "(?i)Non-infected|Piscirickettsia") & str_detect(source_name_ch2, "(?i)Non-infected|(?i)Piscirickettsia")) %>%
-      rownames() %>%
-      mi.gse[, .] -> un_eset_filtrado
-  }
-  else if (b[i] == "GSE43255") {
-    RDS[[i]] -> mi.gse
-    pData(mi.gse) %>%
-      filter(str_detect(title, "High")) %>%
-      rownames() %>%
-      mi.gse[, .] -> un_eset_filtrado
-  }
-  titulos <- bind_rows(titulos, pData(un_eset_filtrado))
-
-  list_con_eset_filtrados[[b[i]]] <- un_eset_filtrado
+parsing_from_match_to_end <- function(file_path){
+  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
+  return(out)
 }
-list_con_eset_filtrados %>%
-  map(pData) %>%
-  enframe() %>%
-  unnest() %>%
-  dplyr::select(matches("^name$|title|geo|source|characteristics|organism")) -> GSMs_filtrados
+
+baptism <- function(path){
+  id <-str_extract(path, 'GSM\\d+')
+  return(id)
+  
+}
+
+unpack <- function(path){
+  gunzip(path, remove = F, overwrite = T)
+}
+get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
+                                                  function(un_codigo_gsm){ try(
+                                                    GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
+                                                      rownames}) %>% unlist}
 ```
 
+Lectura de los Gse's descargados
 ```{r}
-list_con_eset_filtrados$GSE1031 -> un_estudio 
+RDS_formeta<- readRDS(GSEs_formeta)
+```
+Generacion de targets ocupados para el analisis
+```{r}
+RDS_formeta$GSE1031 -> un_estudio 
 un_estudio %>% pData %>% select(matches('geo')| matches('source.*ch')) %>% unite("Cy3",source_name_ch1) %>%unite("Cy5",source_name_ch2) %>%  mutate_at('Cy3', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy3', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% mutate_at('Cy5', ~str_replace(.,'.*Non-infected.*', 'control')) %>% mutate_at('Cy5', ~str_replace(.,'.*salmonis-infected.*', 'infected')) %>% select(matches('geo')|matches('cy')) -> GSE1031 
 
-list_con_eset_filtrados$GSE43255 -> un_estudio 
+###Dyeswap, agregar las inversiones 
+RDS_formeta$GSE43255 -> un_estudio 
 un_estudio %>% pData %>% select(matches('source_name_ch*') | matches('geo')| matches('label')) %>% unite("Cy3", source_name_ch1) %>%unite("Cy5", source_name_ch2) %>% mutate_at("Cy3",~str_replace(.,'.*challenged.*', 'infected')) %>% mutate_at("Cy5",~str_replace(.,'.*control.*', 'control')) %>% select(matches('geo')|matches('cy'))->GSE43255
+
 ```
-
-
-
+exploracion de todos los GSE que contienen Salmo salar.
 ```{r}
 ## estudios que tienen match con Salmo salar
 RDS$GSE1012 %>% pData() #p. salmonis Atlantic Salmon macrofagos infectados
 RDS$GSE1031 %>% pData() #p. salmonis Atlantic Salmon 
 RDS$GSE43255%>% pData() %>% select(matches("organism_ch*")) # p. salmonis, PAPER PROFE
-
-
-
-
+----------------------------------------------------------------------------------------------------------------
 ### podria ser utilizados para enrobustecer el grupo Control
 RDS$GSE19630 %>% pData() %>% select(matches("organism_ch*")) #Anemia virus ISAV
 RDS$GSE26984 %>% pData() %>% select(matches("organism_ch*")) # challenged with l. salmonis
@@ -75,22 +67,16 @@ RDS$GSE36072%>% pData() %>% select(matches("organism_ch*")) #parasitic copepod L
 RDS$GSE36332%>% pData() %>% select(matches("organism_ch*"))# Y. ruckeri
 RDS$GSE101695%>% pData() %>% select(matches("organism_ch*")) #Salmo trutta L. garvieae-infected
 RDS$GSE140756%>% pData() %>% select(matches("organism_ch*")) #Chalimus 
-
 ```
-
+Guardar los targets generados en una lista de dataframes
 ```{r}
 llist(GSE1031,GSE43255) -> mis.targets
-
 saveRDS(mis.targets, path)
 mis.targets <- readRDS(path)
 ```
-
+Descarga de los GSMS de la lista de los targets y agrupar los targets generados en una sola data frame 
 ```{r}
-## En caso de no tener los archivos gsms en el directorio local
-get_my_GSM <- function(un_codigo_gsm){ purrr::map(un_codigo_gsm,
-                                                  function(un_codigo_gsm){ try(
-                                                    GEOquery::getGEOSuppFiles(un_codigo_gsm, makeDirectory = TRUE, baseDir =getwd(), fetch_files = T ) )%>% 
-                                                      rownames}) %>% unlist}
+
 purrr::map(mis.targets, purrr::pluck("geo_accession")) -> mi_lista_GSE_GSM
 mis.targets %<>% enframe %>% unnest 
 purrr::map(mi_lista_GSE_GSM,get_my_GSM) -> all_gsms
@@ -98,12 +84,14 @@ all_gsms %>% enframe %>% unnest %>% mutate(geo_accession = str_extract(value, 'G
 inner_join(mis.targets,all_gsms_final, by=c("geo_accession") ) -> target_final
 ### En caso de tener los archivos en el directorio local
 saveRDS(target_final, saving)
+
 target_final <- readRDS(saving)
+
 #full_join(mis.targets,hola2, by=c("geo_accession") ) -> target_final2
 #identical(target_final$name.x, target_final$name.y) # just a check
 
 ```
-
+Extraccion de extensiones de los archivos con posible utilidad de automatizar el proceso.
 ```{r}
 ##Comparador para descompresiones ordenadas
 
@@ -111,7 +99,7 @@ str_extract(target_final$value, "[.]([a-z])*[.]") %>% unique() -> Extensiones
 all_extensions <- c(".tif.",".gpr.",".ftr.",".txt." ,".xml.", ".tsv." )
 
 ```
-
+separacion de los archivos en diferentes listas segun las extensiones
 ```{r}
 #Declaración de listas vacias
 archivos_tif <- list()
@@ -158,30 +146,17 @@ archivos_txt  %>% unlist()  -> archivos_txt
 archivos_xml  %>% unlist()  -> archivos_xml
 archivos_tsv  %>% unlist()  -> archivos_tsv
 ```
-
-
+utilizar funcion de extraccion de los archivos 
 ```{r}
-unpack <- function(path){
-  gunzip(path, remove = F, overwrite = T)
- }
 test <- Vectorize(unpack)
 test(target_final$value)
 ```
-
+Procesamiento de los archivos con extension .gpr o texto plano.
+Extraccion, re- nombramiento y lectura encontrando patron comun con la funcion parsing_from_match_to end
+Estandarizacion de los nombres de los canales de "colores" y renombrambiento de los archivos con el tag "corrected "
 ```{r}
 ### for GPR files
-
 extracted_gpr <- gsub('.gz', '',archivos_gpr) %>% unique()
-
-parsing_from_match_to_end <- function(file_path){
-  as.data.frame(fread(file = file_path,sep = '\t', skip = 'Block')) -> out
-  return(out)
-}
-baptism <- function(path){
-  id <-str_extract(path, 'GSM\\d+')
-  return(id)
-  
-}
 z<- extracted_gpr %>% map_chr(~baptism(.))
 my.gpr.DFs <-map(extracted_gpr, parsing_from_match_to_end)
 names(my.gpr.DFs) <- z
@@ -243,45 +218,279 @@ FileName %>% str_extract('GSM\\d+') -> sample.names
 sample.names_files <- cbind(row.names = sample.names,FileName)
 target_final %>% filter(str_detect(value, '[.](gpr)*[.]')) ->target.ok
 target.ok$value <- FileName %>% unlist()
-colnames(target.ok)[6] <- c("FileName")
+colnames(target.ok)[6] <- c("FileName") ##Cambiar el nombre de la columna para que la funcion read.maimages lo lea automaticamente
+target.ok_pulgar <-data.frame(geo_accession = target.ok$geo_accession,Cy3 = target.ok$Cy3, Cy5= target.ok$Cy5)
 ```
-Blast contra los GPL.
+
+
+
 ```{r}
-RG_Pulgar          <- read.maimages(target.ok$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
-    RG.bc2_Pulgar      <-backgroundCorrect(RG_Pulgar,method="normexp")
-    RG.bc2.norm_Pulgar <- normalizeWithinArrays(RG.bc2_Pulgar, method="loess", weights = NULL)
-    modelMatrix(target.ok, ref = 'control') -> design_Pulgar
+cy3 <- c("control","control", "infected", "infected","control","control", "infected", "infected", "control","control", "infected", "infected" )
+cy5 <- c("infected", "infected", "control", "control","infected", "infected", "control", "control","infected", "infected", "control", "control")
+
+target_pulgar_dye_swap <- data.frame(geo_accession = target.ok_pulgar$geo_accession, Cy3 = cy3, Cy5 = cy5, FileName = target.ok$FileName)
+  swap1 <- target_pulgar_dye_swap%>% filter(Cy3 == "control")
+  swap2 <- target_pulgar_dye_swap%>% filter(Cy3 == "infected")
+```
+
+
+```{r}
+
+    paper_pulgar <- c('CB511680','CA050178','CA063704',    'CB508464','CA044420',    'CB493358',    'CB500248',
+'CA768741',    'CA045510',    'CK991263',    'CB493482',    'CB492183',    'CB497724',    'CA770217',
+'CB508611',    'EG804880','EG783905',    'BU965651',    'DW564371',    'CB508887',    'CB507177',
+'DW577024',    'CB500559',    'CB492123',    'CA042337',    'CB486725',    'CB490914',    'CB492396',    'CA045475',
+'CA047150',    'CA054693',    'EG824838',    'CB498572',    'EG812701',    'CA045554',    'CB493607',    'CA058810',
+'CA060458',    'CA045933',    'CA051651',    'CB497637',    'CA037570',    'CA768633',    'CB501170',    'CA768062',
+'CA052837',    'CN442520','CB493612',    'CN442526',    'CA063030',    'CN442551',    'CN442556',    'BU965678',
+'CN442494',    'CA042906',    'CA058445',    'CB502545',    'CB498852',    'CB492263',    'BU965636',    'CA049300',
+'CB498665',    'CA044104',    'CB510462',        'CA047568',    'CA061635',    'CB493159',    'CB492428',
+'CB509708','CB510731',    'CA039497',    'CB508872',    'CB507722')
+length(paper_pulgar)
+  testandu<-read.delim("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/GSM1059460/GSM1059460_11306_inf-cy5_noinf-cy3_Corrected.gpr")
+
+```
+
+Si consideramos el target dye swap no tendremos ningun gen expresado diferencialmente de manera estadisticamente significativa
+```{r}
+RG_Pulgar_swap1          <- read.maimages(swap1$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+
+RG.bc2_Pulgar      <-backgroundCorrect(RG_Pulgar_swap1,method="subtract") ## parametros normalmente encontrados para analisis de expresion diferencial
+
+###NormalizeWithinArrays tambien hace la correccion de fondo con el metodo substraction por lo que no es necesario llamar a la funcion backgroundcorrect directamente a menos de que uno quiera utilizar un metodo distinto, cabe recalcar que llamar a la funcion backgroundcorrect antes de la funcion normalizewithinArrays va a sobre escribir la correccion de fondo por defecto
+    RG.bc2.norm_Pulgar <- normalizeWithinArrays(RG.bc2_Pulgar,method = "loess")
+    modelMatrix(swap1, ref = 'control') -> design_Pulgar
+    fit.1_Pulgar  <- lmFit(RG.bc2.norm_Pulgar,  design_Pulgar %>% as.matrix())
+    fit2.1_Pulgar <- eBayes(fit.1_Pulgar)
+    diffexp_Pulgar_swap1            <- topTable(fit2.1_Pulgar, coef = colnames(design_Pulgar),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    #write_csv(diffexp_Pulgar, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
+    significativos <- diffexp_Pulgar_swap1 %>% filter(adj.P.Val < 0.05)
+   significativos$Name
+   intersect(paper_pulgar, significativos$Name)
+   resultados_supl<- union(data.left.HS$Name, data.left.LS$Name)
+   intersect(resultados_supl, significativos$Name)
+   
+   
+```
+para realizar el inner join contra los 6 target diferencialmente expresados 
+```{r}
+to_join<- read.delim("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/GPL8904-40060.txt", skip= 20)
+colnames(to_join)[6]<- c("Name")
+```
+Data from published paper
+```{r}
+data.left.HS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_HS.xlsx',1)
+data.left.LS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_LS.xlsx',1)
+resultados_supl<- union(data.left.HS, data.left.LS)
+```
+exportar como tsv 
+```{r}
+GSM1059459<-swap1 %>% filter(geo_accession == "GSM1059459")
+RG_Pulgar_GSM1059459          <- read.maimages(GSM1059459$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059459      <-backgroundCorrect(RG_Pulgar_GSM1059459,method="subtract") 
+    RG.bc2.norm_Pulgar_1059459 <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059459,method = "loess", offset = 50)
+    modelMatrix(GSM1059459, ref = 'control') -> design_Pulgar_GSM1059459
+    fit.1_Pulgar_GSM1059459  <- lmFit(RG.bc2.norm_Pulgar_1059459,  design_Pulgar_GSM1059459 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059459 <- eBayes(fit.1_Pulgar_GSM1059459)
+    diffexp_Pulgar_GSM1059459            <- topTable(fit2.1_Pulgar_GSM1059459, coef = colnames(design_Pulgar_GSM1059459),confint = T, adjust.method="BY",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059459, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059459.csv")
+    significativos_GSM1059459 <- diffexp_Pulgar_GSM1059459 %>% filter(adj.P.Val < 0.05)
+    
+    data_frame_to_clean_GSM1059459 <- inner_join(significativos_GSM1059459, to_join, by = 'ID')
+    
+  f<- intersect(paper_pulgar, significativos_GSM1059459$Name)
+     intersect(resultados_supl$Name, significativos_GSM1059459$Name)  
+   
+    result_GSM1059459 <- data.frame (Name = data_frame_to_clean_GSM1059459$Name.x, logFC = data_frame_to_clean_GSM1059459$logFC, CI.L = data_frame_to_clean_GSM1059459$CI.L, CI.r =data_frame_to_clean_GSM1059459$CI.R, AveExpr= data_frame_to_clean_GSM1059459$AveExpr, t= data_frame_to_clean_GSM1059459$t, P.Value= data_frame_to_clean_GSM1059459$P.Value, adj.P.Val = data_frame_to_clean_GSM1059459$adj.P.Val, B = data_frame_to_clean_GSM1059459$B, description = data_frame_to_clean_GSM1059459$description, biological_process=data_frame_to_clean_GSM1059459$biological_process, gene= data_frame_to_clean_GSM1059459$gene)
+    
+
+write_tsv(result_GSM1059459, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059459.tsv")
+
+```
+
+```{r}
+GSM1059460<-swap1 %>% filter(geo_accession == "GSM1059460")
+RG_Pulgar_GSM1059460         <- read.maimages(GSM1059460$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059460        <-backgroundCorrect(RG_Pulgar_GSM1059460,method="subtract") 
+    RG.bc2.norm_Pulgar_GSM1059460   <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059460  ,method = "loess")
+    modelMatrix(GSM1059460, ref = 'control') -> design_Pulgar_GSM1059460
+    fit.1_Pulgar_GSM1059460    <- lmFit(RG.bc2.norm_Pulgar_GSM1059460  ,  design_Pulgar_GSM1059460 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059460   <- eBayes(fit.1_Pulgar_GSM1059460  )
+    diffexp_Pulgar_GSM1059460            <- topTable(fit2.1_Pulgar_GSM1059460  , coef = colnames(design_Pulgar_GSM1059460),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059460 , path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059460.csv")
+    significativos_GSM1059460 <- diffexp_Pulgar_GSM1059460 %>% filter(adj.P.Val < 0.05)
+    
+    colnames(significativos_GSM1059460)[1] <- c("Name")
+    colnames(significativos_GSM1059460)[2] <- c("annot")
+    
+    data_frame_to_clean_GSM1059460 <- inner_join(significativos_GSM1059460, to_join, by = 'Name')
+    
+    result_GSM1059460 <- data.frame (Name = data_frame_to_clean_GSM1059460$Name, logFC = data_frame_to_clean_GSM1059460$logFC, CI.L = data_frame_to_clean_GSM1059460$CI.L, CI.r =data_frame_to_clean_GSM1059460$CI.R, AveExpr= data_frame_to_clean_GSM1059460$AveExpr, t= data_frame_to_clean_GSM1059460$t, P.Value= data_frame_to_clean_GSM1059460$P.Value, adj.P.Val = data_frame_to_clean_GSM1059460$adj.P.Val, B = data_frame_to_clean_GSM1059460$B, description = data_frame_to_clean_GSM1059460$description, biological_process=data_frame_to_clean_GSM1059460$biological_process, gene= data_frame_to_clean_GSM1059460$gene)
+write_tsv(result_GSM1059460, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059460.tsv")
+e<-intersect(paper_pulgar, significativos_GSM1059460$Name)
+```
+
+```{r}
+GSM1059461<-swap1 %>% filter(geo_accession == "GSM1059461")
+
+RG_Pulgar_GSM1059461         <- read.maimages(GSM1059461$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059461      <-backgroundCorrect(RG_Pulgar_GSM1059461,method="subtract") 
+    RG.bc2.norm_Pulgar_GSM1059461 <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059461,method = "loess")
+    modelMatrix(GSM1059461, ref = 'control') -> design_Pulgar_GSM1059461
+    fit.1_Pulgar_GSM1059461  <- lmFit(RG.bc2.norm_Pulgar_GSM1059461,  design_Pulgar_GSM1059461 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059461 <- eBayes(fit.1_Pulgar_GSM1059461)
+    diffexp_Pulgar_GSM1059461            <- topTable(fit2.1_Pulgar_GSM1059461, coef = colnames(design_Pulgar_GSM1059461),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059461, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059461.csv")
+    
+    significativos_GSM1059461 <- diffexp_Pulgar_GSM1059461 %>% filter(adj.P.Val < 0.05)
+    data_frame_to_clean_GSM1059461 <- inner_join(significativos_GSM1059461, to_join, by = 'Name')
+    
+    result_GSM1059461 <- data.frame (Name = data_frame_to_clean_GSM1059461$Name, logFC = data_frame_to_clean_GSM1059461$logFC, CI.L = data_frame_to_clean_GSM1059461$CI.L, CI.r =data_frame_to_clean_GSM1059461$CI.R, AveExpr= data_frame_to_clean_GSM1059461$AveExpr, t= data_frame_to_clean_GSM1059461$t, P.Value= data_frame_to_clean_GSM1059461$P.Value, adj.P.Val = data_frame_to_clean_GSM1059461$adj.P.Val, B = data_frame_to_clean_GSM1059461$B, description = data_frame_to_clean_GSM1059461$description, biological_process=data_frame_to_clean_GSM1059461$biological_process, gene= data_frame_to_clean_GSM1059461$gene)
+write_tsv(result_GSM1059461, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059461.tsv")
+d <- intersect(paper_pulgar, significativos_GSM1059461$Name)
+```
+
+```{r}
+GSM1059462<-swap1 %>% filter(geo_accession == "GSM1059462")
+RG_Pulgar_GSM1059462         <- read.maimages(GSM1059462$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059462      <-backgroundCorrect(RG_Pulgar_GSM1059462,method="subtract") 
+    RG.bc2.norm_Pulgar_GSM1059462 <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059462,method = "loess")
+    modelMatrix(GSM1059462, ref = 'control') -> design_Pulgar_GSM1059462
+    fit.1_Pulgar_GSM1059462  <- lmFit(RG.bc2.norm_Pulgar_GSM1059462,  design_Pulgar_GSM1059462 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059462 <- eBayes(fit.1_Pulgar_GSM1059462)
+    diffexp_Pulgar_GSM1059462            <- topTable(fit2.1_Pulgar_GSM1059462, coef = colnames(design_Pulgar_GSM1059462),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059462, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059462.csv")
+    significativos_GSM1059462 <- diffexp_Pulgar_GSM1059462 %>% filter(adj.P.Val < 0.05)
+    data_frame_to_clean_GSM1059462 <- inner_join(significativos_GSM1059462, to_join, by = 'Name')
+    
+    result_GSM1059462 <- data.frame (Name = data_frame_to_clean_GSM1059462$Name, logFC = data_frame_to_clean_GSM1059462$logFC, CI.L = data_frame_to_clean_GSM1059462$CI.L, CI.r =data_frame_to_clean_GSM1059462$CI.R, AveExpr= data_frame_to_clean_GSM1059462$AveExpr, t= data_frame_to_clean_GSM1059462$t, P.Value= data_frame_to_clean_GSM1059462$P.Value, adj.P.Val = data_frame_to_clean_GSM1059462$adj.P.Val, B = data_frame_to_clean_GSM1059462$B, description = data_frame_to_clean_GSM1059462$description, biological_process=data_frame_to_clean_GSM1059462$biological_process, gene= data_frame_to_clean_GSM1059462$gene)
+   c <-intersect(paper_pulgar, significativos_GSM1059462$Name)
+   resultados_supl<- union(data.left.HS$Name, data.left.LS$Name)
+   intersect(resultados_supl, significativos_GSM1059462$Name)
+   write_tsv(result_GSM1059462, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059462.tsv")
+```
+
+```{r}
+GSM1059463<-swap1 %>% filter(geo_accession == "GSM1059463")
+RG_Pulgar_GSM1059463         <- read.maimages(GSM1059463$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059463      <-backgroundCorrect(RG_Pulgar_GSM1059463,method="subtract") 
+    RG.bc2.norm_Pulgar_GSM1059463 <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059463,method = "loess")
+    modelMatrix(GSM1059463, ref = 'control') -> design_Pulgar_GSM1059463
+    fit.1_Pulgar_GSM1059463  <- lmFit(RG.bc2.norm_Pulgar_GSM1059463,  design_Pulgar_GSM1059463 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059463 <- eBayes(fit.1_Pulgar_GSM1059463)
+    diffexp_Pulgar_GSM1059463            <- topTable(fit2.1_Pulgar_GSM1059463, coef = colnames(design_Pulgar_GSM1059463),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059463, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059463.csv")
+    significativos_GSM1059463 <- diffexp_Pulgar_GSM1059463 %>% filter(adj.P.Val < 0.05)
+    data_frame_to_clean_GSM1059463 <- inner_join(significativos_GSM1059463, to_join, by = 'Name')
+    result_GSM1059463 <- data.frame (Name = data_frame_to_clean_GSM1059463$Name, logFC = data_frame_to_clean_GSM1059463$logFC, CI.L = data_frame_to_clean_GSM1059463$CI.L, CI.r =data_frame_to_clean_GSM1059463$CI.R, AveExpr= data_frame_to_clean_GSM1059463$AveExpr, t= data_frame_to_clean_GSM1059463$t, P.Value= data_frame_to_clean_GSM1059463$P.Value, adj.P.Val = data_frame_to_clean_GSM1059463$adj.P.Val, B = data_frame_to_clean_GSM1059463$B, description = data_frame_to_clean_GSM1059463$description, biological_process=data_frame_to_clean_GSM1059463$biological_process, gene= data_frame_to_clean_GSM1059463$gene)
+  b<- intersect(paper_pulgar, significativos_GSM1059463$Name)
+    intersect(resultados_supl, significativos_GSM1059463$Name)
+   write_tsv(result_GSM1059463, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059463.tsv")
+ 
+```
+
+```{r}
+GSM1059464<-swap1 %>% filter(geo_accession == "GSM1059464")
+RG_Pulgar_GSM1059464         <- read.maimages(GSM1059464$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+RG.bc2_Pulgar_GSM1059464       <-backgroundCorrect(RG_Pulgar_GSM1059464,method="subtract") 
+    RG.bc2.norm_Pulgar_GSM1059464 <- normalizeWithinArrays(RG.bc2_Pulgar_GSM1059464,method = "loess")
+    modelMatrix(GSM1059464, ref = 'control') -> design_Pulgar_GSM1059464
+    fit.1_Pulgar_GSM1059464  <- lmFit(RG.bc2.norm_Pulgar_GSM1059464,  design_Pulgar_GSM1059464 %>% as.matrix())
+    fit2.1_Pulgar_GSM1059464 <- eBayes(fit.1_Pulgar_GSM1059464)
+    diffexp_Pulgar_GSM1059464            <- topTable(fit2.1_Pulgar_GSM1059464, coef = colnames(design_Pulgar_GSM1059464),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+    write_csv(diffexp_Pulgar_GSM1059464, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_GSM1059464.csv")
+    significativos_GSM1059464 <- diffexp_Pulgar_GSM1059464 %>% filter(adj.P.Val < 0.05)
+        data_frame_to_clean_GSM1059464 <- inner_join(significativos_GSM1059464, to_join, by = 'Name')
+
+    
+    result_GSM1059464 <- data.frame (Name = data_frame_to_clean_GSM1059464$Name, logFC = data_frame_to_clean_GSM1059464$logFC, CI.L = data_frame_to_clean_GSM1059464$CI.L, CI.r =data_frame_to_clean_GSM1059464$CI.R, AveExpr= data_frame_to_clean_GSM1059464$AveExpr, t= data_frame_to_clean_GSM1059464$t, P.Value= data_frame_to_clean_GSM1059464$P.Value, adj.P.Val = data_frame_to_clean_GSM1059464$adj.P.Val, B = data_frame_to_clean_GSM1059464$B, description = data_frame_to_clean_GSM1059464$description, biological_process=data_frame_to_clean_GSM1059464$biological_process, gene= data_frame_to_clean_GSM1059464$gene)
+   
+   write_tsv(result_GSM1059464, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059464.tsv")
+    a<-intersect(paper_pulgar, significativos_GSM1059464$Name)
+ listado_final <- as.list(a,b,c,d,e,f)
+ listado_final<-unique(listado_final)
+ length(listado_final)
+```
+
+
+```{r}
+library(biomartr)
+id <-significativos$Name
+#significativos$Name
+listMarts()
+ensembl <- useMart("ensembl")
+searchDatasets(mart = ensembl, pattern = "salar")
+Ss.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+searchAttributes(mart = Ss.ensembl, pattern = 'accession')
+Retriving_names<-getBM(attributes=c('entrezgene_description','uniprot_gn_symbol','entrezgene_id'),filters ='entrezgene_accession',values = id, mart = Ss.ensembl)
+?useMart()
+```
+
+```{r}
+RG_Pulgar          <- read.maimages(swap2$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Name", "ID")) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+
+RG.bc2_Pulgar      <-backgroundCorrect(RG_Pulgar,method="normexp", offset = 50) ## parametros normalmente encontrados para analisis de expresion diferencial
+
+###NormalizeWithinArrays tambien hace la correccion de fondo con el metodo substraction por lo que no es necesario llamar a la funcion backgroundcorrect directamente a menos de que uno quiera utilizar un metodo distinto, cabe recalcar que llamar a la funcion backgroundcorrect antes de la funcion normalizewithinArrays va a sobre escribir la correccion de fondo por defecto
+    RG.bc2.norm_Pulgar <- normalizeWithinArrays(RG.bc2_Pulgar, method="loess")
+    modelMatrix(swap2, ref = 'control') -> design_Pulgar
     fit.1_Pulgar  <- lmFit(RG.bc2.norm_Pulgar,  design_Pulgar %>% as.matrix())
     fit2.1_Pulgar <- eBayes(fit.1_Pulgar)
     diffexp_Pulgar            <- topTable(fit2.1_Pulgar, coef = colnames(design_Pulgar),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
-    write_csv(diffexp_Pulgar, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
 ```
 
+```{r}
+t_pulgar <- diffexp_Pulgar$adj.P.Val
+data.pulgar <- diffexp_Pulgar[!duplicated(diffexp_Pulgar$Name),]
+data.pulgar <- data.pulgar[1:sum(t_pulgar < 0.05),]
+data.left.HS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_HS.xlsx',1)
+data.left.LS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_LS.xlsx',1)
+colnames(data.left.HS)[1] <- c('Name')
+colnames(data.left.LS)[1] <- c('Name')
+join.HS <- inner_join(data.pulgar, data.left.HS, by = 'Name')
+join.LS <- inner_join(data.pulgar, data.left.LS, by = 'Name')
+dim(data.pulgar)
+dim(data.left.HS)
+dim(data.left.LS)
+dim(join.HS)
+dim(join.LS)
+# abs diff between log fold change
+#Mucho castigo en el error 
+abs.diff.HS <- abs(join.HS$logFC - join.HS$X3Fold.change..log2.)
+abs.diff.LS <- abs(join.LS$logFC - join.LS$X3Fold.change..log2.)
+diferencias_valor_absoluto <- data.frame(diferencia = abs.diff.HS, Names = join.HS$Name)
+plot(abs.diff.HS)
+plot(abs.diff.LS)
+mean(abs.diff.LS)
+sd(abs.diff.LS)
+#consistencia por qPCR
+data.pulgar$Name
+join.LS$Name
+```
 
 ```{r}
- #diffexp            <- data.frame(ID = diffexp[,1], log2FC = diffexp$logFC, adj.P.Val = diffexp$adj.P.Val,  CI.L = diffexp$CI.L, CI.R = diffexp$CI.R)
-EnhancedVolcano(diffexp,
-                lab = diffexp$ID,
-                selectLab = NULL,
-                x = 'log2FC',
-                y = 'adj.P.Val',
-                xlim = c(-6,6),
-                xlab = bquote(~Log[2]~ 'fold change'),
-                pCutoff = 0.01,
-                FCcutoff = 1.0,
-                pointSize = 1.0,
-                labSize = 3.0,
-                colAlpha = 1,
-                legendPosition = 'right',
-                legendLabSize = 12,
-                legendIconSize = 4.0,
-                drawConnectors = F,
-                widthConnectors = 0.2,
-                colConnectors = 'grey30',
-                title = '',
-                subtitle = '',
-                ylim = c(0, 6))
-
+EnhancedVolcano(diffexp_Pulgar,
+    lab = diffexp_Pulgar$Name,
+    selectLab = TRUE,
+    x = 'logFC',
+    y = 'adj.P.Val',
+    xlim = c(-3,3),
+    xlab = bquote(~Log[2]~ 'fold change'),
+    pCutoff = 0.05,
+    FCcutoff = 0.2,
+    pointSize = 0.8,
+    labSize = 3.0,
+    colAlpha = 1,
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = F,
+    widthConnectors = 0.2,
+    colConnectors = 'grey30',
+    title = 'Volcano Plot diffe R_Pulgar',
+    subtitle = 'for visual comparison',
+    ylim = c(0, 5)) 
+?EnhancedVolcano
 ```
 
 ```{r}
@@ -290,9 +499,10 @@ EnhancedVolcano(diffexp,
 load("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/E-MTAB-685.eSet.r")
 fdata_study<-fData(study)
 assayDataElementNames(study)
+
 red <- assayDataElement(study,"R") %>% as.data.frame()
 red_back <- assayDataElement(study,"Rb") %>% as.data.frame()
-green = assayDataElement(study,"G")%>% as.data.frame()
+green <- assayDataElement(study,"G")%>% as.data.frame()
 green_back <- assayDataElement(study,"Gb")%>% as.data.frame()
 
 red1 <- red["10031 2 uncom tif_GE2-v5_95_Feb07_1_1"]
@@ -314,11 +524,13 @@ red4 <- red["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
 red_back4 <- red_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
 green4 = green["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"]
 green_back4 <-green_back["10031 2 uncom tif_GE2-v5_95_Feb07_1_4"] 
-
-
 ```
 
+```{r}
+read.delim("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/E-MTAB-685.sdrf.txt")
+```
 
+Los archivos con extension "ADF" Tendran el diseno del array Array Design Format, y describen todas las sondas utilzizadas 
 ```{r}
 Sequence_probs <- parsing_from_match_to_end("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/A-MEXP-2065.adf.txt")
 Sequence_probs$Row <-seq(1:length(Sequence_probs$Row))
@@ -363,11 +575,13 @@ identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_1_row))
 identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_2_row))
 identical(as.matrix(v5_95_Feb07_1_4_row), as.matrix(v5_95_Feb07_1_3_row))
 ```
+
 ```{r}
 Sequence_probs$Row %>% length()
 Sequence_probs$Row %>% unique() %>% length()
 v5_95_Feb07_1_1_row$Row %>%  length()
 v5_95_Feb07_1_1_row$Row %>%  unique() %>% length()
+
 ```
 
 ```{r}
@@ -397,10 +611,10 @@ read.delim(target_test$Filename[4])
 
 
 ```{r}
-RG          <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Reporter Name", "Reporter Sequence"))
+RG_Tacchi <- read.maimages(target_test$Filename ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("Reporter Name", "Reporter Sequence"))
 study$Array.Data.File
-RG.bc2      <-backgroundCorrect(RG,method="normexp")
-    RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="none", weights = NULL)
+RG.bc2<- backgroundCorrect(RG,method="normexp")
+RG.bc2.norm <- normalizeWithinArrays(RG.bc2, method="none", weights = NULL)
     modelMatrix(target_test, ref = 'Control') -> design
     fit.1  <- lmFit(RG.bc2.norm,  design %>% as.matrix())
     fit2.1 <- eBayes(fit.1, robust = TRUE)
@@ -414,56 +628,6 @@ RG.bc2      <-backgroundCorrect(RG,method="normexp")
     write_csv(diffexp, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi.csv")
 ```
 
-```{r}
-
-```
-
-
-```{r}
-## For tiff files
-extracted_tif <- gsub('.gz', '',archivos_tif) %>% unique()
-n<- extracted_tif %>% map_chr(~baptism(.))
-coralRG <- read.maimages(extracted_tif)
-
-
-```
-
-
-```{r}
-for(i in 1:length(archivos_ftr)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- archivos_ftr[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.ftr.DFs[[sample.id]]
-                                  
-}
-```
-
-
-```{r}
-for(i in 1:length(archivos_tsv)){
-                                  line      <- 0L
-                                  input     <- 'string_inicial'
-                                  a.file    <- archivos_tsv[i]
-                                  sample.id <- str_extract(a.file, 'GSM\\d+')
-                                  #leemos linea por linea hasta encontrar la regex 
-                                  while(!str_detect(input, regex('^FEATURES|^block', ignore_case = T))){
-                                       line  <- line + 1L
-                                       input <- read_lines(a.file, skip = line - 1L, n_max = 1L)
-                                       }
-                                  
-                                as.data.frame(read_delim(a.file, delim = '\t', skip = line-1)) -> my.tsv.DFs[[sample.id]]
-                                  
-}
-
-```
 
 ```{r}
 #chequeo que están las cuatro columnas que necesitamos
@@ -471,87 +635,8 @@ for(i in 1:length(archivos_tsv)){
 my.gpr.DFs[[1]] %>% colnames() %>% str_extract_all('^rMeanSignal$|^gMeanSignal$|^rBGMedianSignal$|^gBGMedianSignal$') %>% unlist()
 ```
 
-```{r}
-for(i in 1:length(names(my.txt.DFs))){
-  
-                                            a.data.study          <- my.txt.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.txt.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.txt.DFs[[i]]
-                                            
-                                            names(my.txt.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_txt, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
- 
-                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
-                                            }
-```
 
 
-
-```{r}
-for(i in 1:length(names(my.fpr.DFs))){
-  
-                                            a.data.study          <- my.fpr.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.fpr.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.fpr.DFs[[i]]
-                                            
-                                            names(my.fpr.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_fpr, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
- 
-                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
-                                            }
-```
-
-
-
-```{r}
-for(i in 1:length(names(my.xml.DFs))){
-  
-                                            a.data.study          <- my.xml.DFs[[i]]
-                                            #
-                                            my.cols.init.names    <- a.data.study %>% names() %>%
-                                            str_extract_all("(^F[0-9]+.*Mean$)|(^B[0-9]+.*Mean$)|(Rgn.*R.*)|(r|g)MeanSignal$|(r|g)BGMedianSignal$") %>% unlist
-                                            #
-                                            my.cols.init.names %>% str_replace_all('[:whitespace:]|(Rgn.*R.*)', '')  -> my.cols.names.ok
-                                            
-                                            colnames(my.xml.DFs[[i]][, my.cols.init.names]) <- my.cols.names.ok
-                                            DF_ok <- my.xml.DFs[[i]]
-                                            
-                                            names(my.xml.DFs)[i] -> mi_gsm_en_la_iteracion
-                                            
-                                            str_extract(archivos_xml, paste0(".*", mi_gsm_en_la_iteracion, ".*")) %>% 
-                                              na.omit() %>% as.character() -> mi_ruta_al_txt_en_la_iteracion
-                                            
-                                            str_replace(mi_ruta_al_txt_en_la_iteracion,  "\\.txt", "_Corrected.txt") -> new.FileName.path
- 
-                                            write_delim(DF_ok, path= new.FileName.path, delim = "\t", na = "NA", append = FALSE)
-                                            }
-```
-
-```{r}
-a <-getGEO("GSE1012")
-?getGEO
-exprs(a$GSE1012_series_matrix.txt.gz)
-```
 
 
 
