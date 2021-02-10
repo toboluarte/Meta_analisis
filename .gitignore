@@ -8,7 +8,9 @@
 
 # User-specific files
 *.Ruserdata
-
+*.gpr
+*.gz
+*.html
 # Example code in package build process
 *-Ex.R
 
