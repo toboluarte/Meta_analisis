@@ -3,17 +3,11 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-
 ```{r}
 library(easypackages)
 librerias <- c("GEOquery","Biobase","BiocGenerics","magrittr","tidyr","dplyr","stringr","limma","EnhancedVolcano", "purrr","foreach")
 libraries(librerias)
-mis.codigos.gse <- c('GSE42847')
-
-###'GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184'||||||'GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756') 
+mis.codigos.gse <- c('GSE1012','GSE1031','GSE6105','GSE6350','GSE6924','GSE9595','GSE10272','GSE6924','GSE13994','GSE15328','GSE19049','GSE19630','GSE20310','GSE18219','GSE19646','GSE26984','GSE28843','GSE30426','GSE30426','GSE28357','GSE34745','GSE35184','GSE35448','GSE35633','GSE35804','GSE36072','GSE36332','GSE38763','GSE40733','GSE26651','GSE39274','GSE42263','GSE42847','GSE44352','GSE47057','GSE51603','GSE51839','GSE56487','GSE43255','GSE45163','GSE58823','GSE87920','GSE101695','GSE140756') 
 
 my_getGEO <- function (codigo_gse){
   getGEO(codigo_gse, GSEMatrix = TRUE, AnnotGPL = TRUE, getGPL = TRUE) -> my.gse.data
@@ -34,8 +28,7 @@ pData(gse_data$`GSE32119-GPL6457`)  %<>% filter(str_detect(title,'(18|16)hpi'))
 
 ```{r message=FALSE, warning=FALSE}
 ################ filtrados el primer dia ####################
-pData(gse_data$GSE1012) %<>% filter(str_detect(source_name_ch1,'non-infected|Piscirickettsia') & str_detect(source_name_ch2,'non-infected| Piscirickettsia')) # solo 3 gsm no se que filtrar
-
+#ESTUDIO EXCLUIDO, SON MACROFAGOS INFECTADOS CON P.SALMONIS# pData(gse_data$GSE1012) %<>% filter(str_detect(source_name_ch1,'non-infected|Piscirickettsia') & str_detect(source_name_ch2,'non-infected| Piscirickettsia'))
 pData(gse_data$GSE1031) %<>% filter(str_detect(source_name_ch1,'Non-infected|Piscirickettsia')& str_detect(source_name_ch2,'Non-infected|Piscirickettsia')) # solo 4 gsms sin grupos, valdra la pena aplicar algun filtro?
 pData(gse_data$GSE6105) %<>% filter(str_detect(title,'control|infection'))
 pData(gse_data$GSE6350) %<>% filter(str_detect(title,'control|infection'))
@@ -124,7 +117,7 @@ pData(gse_data$GSE51839) %<>% filter(str_detect(source_name_ch1,'21dpi')) # dife
 
 pData(gse_data$GSE56487) %<>% filter(str_detect(source_name_ch1,'-injected') & str_detect(source_name_ch1,'vaccine', negate = T)) %>% filter(str_detect(source_name_ch1, '72hpi')) #Deberia seleccionar control de procedimiento (plasmido vacio), infectados y eliminar a los vacunados.
 
-pData(gse_data$GSE43255) %<>% filter(str_detect(title, 'High')) ### Solo son individuos infectados, en este caso intentare seleccionar los mas sensibles a la infeccion
+pData(gse_data$GSE43255) %<>% filter(str_detect(title, 'High')) ### en este caso intentare seleccionar los mas sensibles a la infeccion
 
 pData(gse_data$GSE45163) %<>% filter(str_detect(title,'Control|12h after')) ## control y control de procedimiento + infectados 12hrs
  

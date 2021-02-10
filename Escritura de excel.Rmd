@@ -8,50 +8,91 @@ GSE 1031 -> GPL966
 E-MTAB-685->
 
 GSE43255 -> GPL8904 	
+Este chunk de codigo correria en el caso ideal que los resulados del paper de Pulgar tuviesen sentido bajo el mismo analisis y que el paper de Tacchi exisitieran los datos.
 ```{r}
-Pulgar <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
-Tacchi <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi.csv")
+Pulgar <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/Pulgar_highsensitive.csv")
 Rise <- read_csv ("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise.csv")
 
 ```
+intentaremos generar un meta-analisis con los 6  tsv que generamos a partir del estudio de Pulgar y loss resultados obtenidos desde el epaper de Rise.
+```{r}
+Pulgar1 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059459")
+Pulgar2 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059460")
+Pulgar3 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059461")
+Pulgar4 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059462")
+Pulgar5 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059463")
+Pulgar6 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/GSM1059464")
+Rise_2 <- read_tsv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise.csv")
+
+
+```
+Los resultados de Tacchi no fueron subidos
 ```{r}
 names(Tacchi)<- c("Reporter.Name","Sequence","logFC","CI.L", "CI.R","AveExpr","t", "P.Value","adj.P.Val", "B")      
 Tacchi_withseq <-Tacchi
 ```
-
+para rescatar los expression set de cada uno de los estudios a ser considerados
 ```{r}
 Pulgar_eset <-getGEO("GSE43255", AnnotGPL = TRUE, getGPL = TRUE)[[1]]
 Rise_eset <-getGEO("GSE1031", AnnotGPL = TRUE, getGPL = TRUE)[[1]]
 
 ```
-
+Con los expresion sets haremos merge a cada uno de los genes differencialemte expresados con su respectiva secuencia
 ```{r}
 Pulgar_GB_Sequence<- Pulgar_eset %>% fData() %>% select(c("GB_ACC", "SEQUENCE"))
 names(Pulgar_GB_Sequence) <- c("Name", "Sequence")
 Pulgar_withseq<- merge(Pulgar, Pulgar_GB_Sequence)
 ```
+alternativamente lo haremos para los 6 objetos de salida del estudio de Pulgar 
+```{r}
+Pulgar_withseq1<- merge(Pulgar1, Pulgar_GB_Sequence)
+Pulgar_withseq2<- merge(Pulgar2, Pulgar_GB_Sequence)
+Pulgar_withseq3<- merge(Pulgar3, Pulgar_GB_Sequence)
+Pulgar_withseq4<- merge(Pulgar4, Pulgar_GB_Sequence)
+Pulgar_withseq5<- merge(Pulgar5, Pulgar_GB_Sequence)
+Pulgar_withseq6<- merge(Pulgar6, Pulgar_GB_Sequence)
+```
 
-
+rescatamos las secuencias desde la pagina GEO y guardamos el archivo con extension ".html" el cual contiene todas las secuencias con sus respectivas anotaciones
 ```{r}
 Rise_eset %>% fData()
-read.delim("/home/alejandro/Documentos/Meta_analisis_teleosteos/GPL966.annot", skip = 28, delim = '/t' )
+read.delim("/home/alejandro/Documentos/Meta_analisis_teleosteos/GPL966.annot", skip = 28 )
 dataseq<- fread(file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Secuencia.html", sep = '\t', skip = 'ID')
 dataseq %<>% select(matches(">ID<|*SEQUENCE*"))  
 names(dataseq) <- c("ID", "Sequence")
 Rise_withseq<- merge(Rise, dataseq)
 ```
-
+generando los archivos para un analisis alternativo que incorpora los output de los 6 targets del estudio de pulgar
 ```{r}
-write_csv(Pulgar_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias.csv")
+Rise_withseq2 <- merge(Rise2, dataseq)
+```
+escritura de los archivos excel que tienen las anotaciones de las secuecnias
+```{r}
+write_csv(Pulgar_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias_highsensitive.csv")
 write_csv(Rise_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise_conSecuencias.csv")
 write_csv(Tacchi_withseq, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi_conSecuencias.csv")
 ```
-
+Escritura de los archivos excels para los 6 output de Pulgar + Rise
 ```{r}
-Pulgar_Blast <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias.csv")
+write_csv(Pulgar_withseq1, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias1.csv")
+write_csv(Pulgar_withseq2, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias2.csv")
+write_csv(Pulgar_withseq3, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias3.csv")
+write_csv(Pulgar_withseq4, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias4.csv")
+write_csv(Pulgar_withseq5, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias5.csv")
+write_csv(Pulgar_withseq6, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias6.csv")
+write_csv(Rise_withseq2, "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise_conSecuencias.csv")
+```
+Lectura de los archivos para el meta-analisis
+```{r}
+Pulgar_Blast <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar_conSecuencias_highsensitive.csv")
 Tacchi_Blast <- read_csv("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Tacchi_conSecuencias.csv")
 Rise_Blast <- read_csv ("/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Rise_conSecuencias.csv")
 ```
+lectura de los archivos para el segundo metaanalisis
+```{r}
+
+```
+
 Pulgar blast
 ```{r}
 library(seqinr)
@@ -141,9 +182,13 @@ Tacchi_for_meta_analisis <- inner_join(Tacchi_for_meta_analisis, found_Tacchi_ju
 ```
 
 ```{r}
+mRNA_Rozas = 
+```
+
+```{r}
 mRNA_Pulgar      =   Pulgar_output_mRNA$mRNA
 found_Pulgar= 
-  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Ss.ensembl)
+  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA_Pulgar, mart = Ss.ensembl)
 Pulgar_full_output<- inner_join(Pulgar_output_mRNA, found_Pulgar, by = c("mRNA" = "refseq_mrna_predicted"))
 Pulgar_full_output_diffexp<- inner_join(Pulgar_full_output, Pulgar_Blast, by = c("X1" = "ID"))  
 Pulgar_for_meta_analisis <-Pulgar_full_output_diffexp %>% dplyr::select(c("mRNA", "uniprot_gn_symbol","entrezgene_description", "logFC", "CI.L", "CI.R", "adj.P.Val"))
@@ -155,7 +200,7 @@ Pulgar_for_meta_analisis <- inner_join(Pulgar_for_meta_analisis, found_Pulgar_ju
 ```{r}
 mRNA_Rise      =   Rise_output_mRNA$mRNA
 found_Rise= 
-  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol', 'refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA, mart = Ss.ensembl)
+  getBM(attributes=c('entrezgene_description','uniprot_gn_symbol', 'refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values = mRNA_Rise, mart = Ss.ensembl)
 Rise_full_output<- inner_join(Rise_output_mRNA, found_Rise, by = c("mRNA" = "refseq_mrna_predicted"))
 Rise_full_output_diffexp<- inner_join(Rise_full_output, Rise_Blast, by = c("X1" = "ID"))  
 Rise_for_meta_analisis <-Rise_full_output_diffexp %>% dplyr::select(c("mRNA", "uniprot_gn_symbol","entrezgene_description", "logFC", "CI.L", "CI.R", "adj.P.Val"))
@@ -165,22 +210,49 @@ Rise_for_meta_analisis <- inner_join(Rise_for_meta_analisis, found_Rise_justid, 
 
 
 ```
+
 ```{r}
 BiocManager::install("MetaVolcanoR", eval = FALSE)
 ```
-
+Meta analisis para todos los genes diferencialmente expresados, los parametros son modificables 
 ```{r}
 library(MetaVolcanoR)
-All_authors_for_meta<- list(Rise_for_meta_analisis, Pulgar_for_meta_analisis, Tacchi_for_meta_analisis)
-All_authors_for_meta %<>% set_names(c("Rise","Pulgar","Tacchi"))
+All_authors_for_meta<- list(Rise_for_meta_analisis, Pulgar_for_meta_analisis)
+All_authors_for_meta %<>% set_names(c("Rise","Pulgar"))
 
-meta_degs_combining <- combining_mv(diffexp = All_authors_for_meta, metathr=1,metafc = "Mean", collaps = TRUE, pcriteria='adj.P.Val',foldchangecol='logFC', genenamecol='entrezgene_description', geneidcol = "entrezgene_id")
+meta_degs_combining <- combining_mv(diffexp = All_authors_for_meta, metathr=1,metafc = "Mean", collaps = TRUE, pcriteria='adj.P.Val',foldchangecol='logFC', genenamecol='mRNA', geneidcol = "entrezgene_id")
 combining_mv
 
-meta_degs_votecount <- votecount_mv(diffexp=All_authors_for_meta,pcriteria='adj.P.Val', foldchangecol='logFC',genenamecol='entrezgene_description',geneidcol="entrezegene_id",pvalue=0.05,foldchange=0,metathr=1,collaps=TRUE)
+meta_degs_votecount <- votecount_mv(diffexp=All_authors_for_meta,pcriteria='adj.P.Val', foldchangecol='logFC',genenamecol='mRNA',geneidcol="entrezegene_id",pvalue=0.05,foldchange=0,metathr=1,collaps=TRUE)
 
-meta_degs_rem   <-   rem_mv(diffexp = All_authors_for_meta, pcriteria = "adj.P.Val",foldchangecol = "logFC", genenamecol = "entrezgene_description", geneidcol = "entrezegene_id",collaps = TRUE, llcol = "CI.L", rlcol = "CI.R", vcol = TRUE,cvar = TRUE, metathr = 1)
-?rem_mv
+meta_degs_rem   <-   rem_mv(diffexp = All_authors_for_meta, pcriteria = "adj.P.Val",foldchangecol = "logFC", genenamecol = "mRNA", geneidcol = "entrezegene_id",collaps = TRUE, llcol = "CI.L", rlcol = "CI.R", vcol = TRUE,cvar = TRUE, metathr = 1)
+```
+
+anexando las descripciones 
+```{r}
+library(biomaRt)
+listMarts()
+#ensembl <- useMart("genbank")
+#searchDatasets(mart = ensembl, pattern = "salar")
+Ss.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+listAttributes(Ss.ensembl)
+searchAttributes(mart = Ss.ensembl, pattern = 'symbo')
+```
+
+
+```{r}
+prueba<- getBM(attributes=c('entrezgene_description','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Siginificativos_Combining$refseq_peptide_predicted, mart = Ss.ensembl)
+  prueba2 <- inner_join(Siginificativos_Combining, prueba , by ="refseq_peptide_predicted")
+  prueba3 <- prueba2 %>% unique()
+  write_tsv(prueba3, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/Meta_analisis_combining_with_decription.tsv")
+
+```
+
+
+```{r}
+saveRDS(meta_degs_combining, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/combining.rds")
+saveRDS(meta_degs_votecount, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/votecounts.rds")
+saveRDS(meta_degs_rem, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/rem.rds")
 
 ```
 

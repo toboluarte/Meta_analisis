@@ -133,6 +133,7 @@ Conteo:
 Ahora que hemos descubierto de donde viene cada lectura en el genoma, necesitamos resumir la informacion a traves de los genes o exones.
 El alineamiento produce un ser de archivos con extension ".BAM", los que contienen las lecturas alineadas para cada libreria. en el archivo BAM existe la locacion del cromosoma para cada lectura que mapea de manera unica. Estas lecturas mapeadas pueden ser contadas a traves de los genes del salmon utilizando la funcion featureCounts, esta funcion tiene dentor de si anotaciones para lo assemblies de raton mm9 y mm10 y de humano hg19.
 ```{r}
+###hasta aqui llegue
 fc <- featureCounts(bam.files, annot.inbuilt="mm10")
 ?featureCounts
 ```
