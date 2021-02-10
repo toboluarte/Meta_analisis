@@ -1,0 +1,37 @@
+---
+title: "Rna-seq results"
+output: html_notebook
+---
+
+```{r}
+Results_Rna_seq_Diseased_vs_control<- read.delim(file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/C1_todo_DESeq2_Diseased_vs_Control.txt", sep = "")
+pvalue<- as.numeric(gsub(",", ".", gsub("\\.", "", Results_Rna_seq_Diseased_vs_control$pvalue)))
+adjustedpvalue <- as.numeric(gsub(",", ".", gsub("\\.", "", Results_Rna_seq_Diseased_vs_control$padj)))
+Results_Rna_seq_Diseased_vs_control$pvalue <- pvalue
+Results_Rna_seq_Diseased_vs_control$padj <- adjustedpvalue
+significativos_Diseased_vs_control <- Results_Rna_seq_Diseased_vs_control %>% filter(pvalue < 0.05)
+IDs_Rozas<- significativos_Diseased_vs_control[0]
+pvalue_rozas <- significativos_Diseased_vs_control$pvalue
+
+
+Results_Rna_seq_Diseased_vs_control$pvalue <- pvalues
+significativos <- pvalues %>% filter(pvalues < 0.05)
+
+
+Results_Rna_seq_late_vs_control<- read.delim(file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/B1_todo_DESeq2_Late_vs_Control.txt")
+significativos_late_vs_control <- Results_Rna_seq_late_vs_control %>% filter(padj < 0.05)
+
+
+
+Results_Rna_seq_early_vs_control<- read.delim(file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/A1_todo_DESeq2_Early_vs_Control.txt")
+significativos_early_vs_control <- Results_Rna_seq_early_vs_control %>% filter(pvalue < 0.05)
+adjusted_early_control <- as.numeric(gsub(",", ".", gsub("\\.", "", Results_Rna_seq_early_vs_control$padj)))
+Results_Rna_seq_early_vs_control$padj<- adjusted_early_control
+significativos_Results_Rna_seq_early_vs_control <- Results_Rna_seq_early_vs_control %>% filter(padj < 0.05)
+IDs_rozas_early_control <- significativos_Results_Rna_seq_early_vs_control[0]
+base_mean_early_control <-  significativos_Results_Rna_seq_early_vs_control[1]
+log2foldchange <- significativos_Results_Rna_seq_early_vs_control[2]
+colnames(significativos_Results_Rna_seq_early_vs_control[0]) <- c("ID")
+
+```
+

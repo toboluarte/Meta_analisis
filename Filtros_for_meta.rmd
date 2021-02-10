@@ -35,6 +35,7 @@ Recordar que el estudio de Rise contenia 2 GSE, de los cuales fue excluido el GS
 pData(RDS_formeta$GSE1031)
 ```
 Filtrado de array express incluido en el estudio:
+Los archivos con extension ".sdrf" son los archivos que contienen el metadata de los experimentos cuyos datos han sido subido a Array express
 ```{r}
 ## No funciona Duplicate row names are not allowed
 ?ArrayExpress
@@ -45,6 +46,27 @@ procset(emtab)
 print(emtab)
 sampleNames(emtab)
 colnames(pData(emtab))
+### Esto si funcionara, Los Archivos .sdrf 
+To_work<- read.delim("~/Documentos/Meta_analisis_teleosteos/Meta_analisis/E-MTAB-685.sdrf.txt")
+###Filtro por organo (rinon) y tratamiento.
+Head_kidney_Samples <- To_work %>% filter(str_detect(Characteristics..OrganismPart., 'head'))
+Head_kidney_infected <- Head_kidney_Samples %>% filter(str_detect(	
+Factor.Value..INJECTION., 'SRS'))
+Head_kidney_control <- Head_kidney_Samples %>% filter(str_detect(	
+Factor.Value..INJECTION., 'saline'))
+### Filtro Musculo
+Muscle_Samples <- To_work %>% filter(str_detect(Characteristics..OrganismPart., 'muscle')) #10031 y 10032 Solo esta MUSCULO Control!!
+Muscle_infected <- Muscle_Samples %>% filter(str_detect(	
+Factor.Value..INJECTION., 'SRS'))
+Muscle_control <- Muscle_Samples %>% filter(str_detect(	
+Factor.Value..INJECTION., 'saline'))
+### Filtro higado 
+Liver_Samples <- To_work %>% filter(str_detect(Characteristics..OrganismPart., 'liver')) ###10041 y10042
+Liver_infected <- Liver_Samples %>% filter(str_detect(Factor.Value..INJECTION., 'SRS'))
+Liver_control <- Liver_Samples %>% filter(str_detect(Factor.Value..INJECTION., 'saline'))
+### Filtro mixed pooled reference
+Mixed_Samples <- To_work %>% filter(str_detect(Characteristics..OrganismPart., 'mixed')) #10046 y 10047
+
 ```
 
 

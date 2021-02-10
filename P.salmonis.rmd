@@ -253,23 +253,25 @@ length(paper_pulgar)
 
 Si consideramos el target dye swap no tendremos ningun gen expresado diferencialmente de manera estadisticamente significativa
 ```{r}
-RG_Pulgar_swap1          <- read.maimages(swap1$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
+high_sensitive_forward <- swap1[1:6,]
+RG_Pulgar_swap1_highsensitive          <- read.maimages(high_sensitive_forward$FileName ,source = "generic", columns = list(R= "rojo_forward" ,G= "verde_forward",Rb="rojo_background" ,Gb="verde_background"), annotation = c("ID","Name" )) ### Dejar 3 anotaciones, "nombre de algo" sonda o gen y el ID.
 
-RG.bc2_Pulgar      <-backgroundCorrect(RG_Pulgar_swap1,method="subtract") ## parametros normalmente encontrados para analisis de expresion diferencial
+RG.bc2_Pulgar_highsensitive  <-backgroundCorrect(RG_Pulgar_swap1_highsensitive,method="subtract") ## parametros normalmente encontrados para analisis de expresion diferencial
 
 ###NormalizeWithinArrays tambien hace la correccion de fondo con el metodo substraction por lo que no es necesario llamar a la funcion backgroundcorrect directamente a menos de que uno quiera utilizar un metodo distinto, cabe recalcar que llamar a la funcion backgroundcorrect antes de la funcion normalizewithinArrays va a sobre escribir la correccion de fondo por defecto
-    RG.bc2.norm_Pulgar <- normalizeWithinArrays(RG.bc2_Pulgar,method = "loess")
-    modelMatrix(swap1, ref = 'control') -> design_Pulgar
-    fit.1_Pulgar  <- lmFit(RG.bc2.norm_Pulgar,  design_Pulgar %>% as.matrix())
-    fit2.1_Pulgar <- eBayes(fit.1_Pulgar)
-    diffexp_Pulgar_swap1            <- topTable(fit2.1_Pulgar, coef = colnames(design_Pulgar),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
+      RG.bc2.norm_Pulgar_highsensitive <- normalizeWithinArrays(RG.bc2_Pulgar_highsensitive,method = "loess", offset = 50)
+    modelMatrix(high_sensitive_forward, ref = 'control') -> design_Pulgar_highsensitive
+    fit.1_Pulgar_highsensitive  <- lmFit(RG.bc2.norm_Pulgar_highsensitive,  design_Pulgar_highsensitive %>% as.matrix())
+    fit2.1_Pulgar_highsensitive <- eBayes(fit.1_Pulgar_highsensitive)
+    diffexp_Pulgar_highsensitive           <- topTable(fit2.1_Pulgar_highsensitive, coef = colnames(design_Pulgar_highsensitive),confint = T, adjust.method="BH",sort.by = 'p', number=Inf)
     #write_csv(diffexp_Pulgar, path = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/diff_exp_Pulgar.csv")
-    significativos <- diffexp_Pulgar_swap1 %>% filter(adj.P.Val < 0.05)
+    significativos <- diffexp_Pulgar_highsensitive %>% filter(adj.P.Val < 0.05)
    significativos$Name
    intersect(paper_pulgar, significativos$Name)
-   resultados_supl<- union(data.left.HS$Name, data.left.LS$Name)
-   intersect(resultados_supl, significativos$Name)
-   
+ 
+   intersect(data.left.HS$X1GenBank.ID, significativos$Name)
+   write_tsv(significativos, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/highsensitive_p05.tsv")
+   write_csv(diffexp_Pulgar_highsensitive, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Resultados_csv/Pulgar_highsensitive.csv")
    
 ```
 para realizar el inner join contra los 6 target diferencialmente expresados 
@@ -282,6 +284,7 @@ Data from published paper
 data.left.HS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_HS.xlsx',1)
 data.left.LS <- read.xlsx('/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/12864_2015_1716_MOESM2_ESM_LS.xlsx',1)
 resultados_supl<- union(data.left.HS, data.left.LS)
+
 ```
 exportar como tsv 
 ```{r}

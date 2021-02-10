@@ -16,22 +16,242 @@ XM_014168710
 XM_014136366
 XM_014155454
 ```{r}
+Meta_votecount<- readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/votecounts.rds")
+Meta_rem<- readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/rem.rds")
+Meta_combining<- readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/combining.rds")
+
+```
+rescatando los mRNA code de cada uno de los genes
+
+```{r}
+mRNA_votecount  <- Meta_votecount@metaresult$mRNA
+mRNA_rem <-  Meta_rem@metaresult$mRNA
+mRNA_combining <- Meta_combining@metaresult$mRNA
+```
+
+
+
+```{r}
 library(biomaRt)
 
 #ensembl <- useMart("genbank")
 #searchDatasets(mart = ensembl, pattern = "salar")
 Ss.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
-listAttributes(Ss.ensembl)
+#listAttributes(Ss.ensembl)
+```
+
+
+```{r}
+mRNA_vector_votecount <- mRNA_votecount
+Rna_peptide_votecount<- getBM(attributes=c('refseq_mrna_predicted','refseq_peptide_predicted'),filters ='refseq_mrna_predicted',values =mRNA_vector_votecount , mart = Ss.ensembl)
+
+Rna_peptide_combining<- getBM(attributes=c('refseq_mrna_predicted','refseq_peptide_predicted'),filters ='refseq_mrna_predicted',values =mRNA_rem , mart = Ss.ensembl)
+Rna_peptide_rem <- getBM(attributes=c('refseq_mrna_predicted','refseq_peptide_predicted'),filters ='refseq_mrna_predicted',values =mRNA_combining , mart = Ss.ensembl)
+
+saveRDS(Rna_peptide_combining, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/RNA_annotations_combing.rds")
+saveRDS(Rna_peptide_rem, file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/RNA_annotations_rem.rds")
+saveRDS(Rna_peptide_votecount, file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/RNA_annotatitons_votecount.rds")
+```
+Agregando las anotaciones a cada uno de los resultados de el meta-analisis
+```{r}
+full_data_frame_combining<- inner_join(Meta_combining@metaresult, Rna_peptide_combining, by = c("mRNA" = "refseq_mrna_predicted"))
+full_data_frame_votecount <- inner_join(Meta_votecount@metaresult, Rna_peptide_votecount, by = c("mRNA" = "refseq_mrna_predicted"))
+full_data_frame_rem <- inner_join(Meta_rem@metaresult, Rna_peptide_rem, by = c("mRNA" = "refseq_mrna_predicted"))
+
+```
+  
+Debemos tomar los codigos de los peptidos 1 por 1 e buscar en la columna salmo salar en que fila se encuentra el codigo. 
+una vez encontrado debemos extraer el grupo ortologo "group id", este id debemos acoplarlo a la data frame de metalanislis, con el proposito de
+tener una data frame con todos los resultado.
+Los peptidos no encontrados deberan ser etiquetados con "Not Found "
+debo repetir el proceso para el objeto single_copy_groups, pero esta vez debo cambiar el nombre de la primera columna como "Single copy group"
+```{r}
+ortholog_groups
+single_copy_groups
+```
+Generar la funcion que se le entreguen las 2 columnas delimitadas por comas
+```{r}
+library(rlist)
+library(splitstackshape)
+
+spliter <-function(ortholog, metaresult){
+  object <- strsplit(ortholog, ",") %>%  unlist()
+  object <- gsub("\\.[0-9]","", object)
+  ready <- 1:length(metaresult) %>% purrr::map(function(x) which(metaresult[x] == object))
+  ready_clean <-  1:length(metaresult) %>% purrr::map(function(x) ifelse(!length(ready[[x]]) == FALSE, ready[[x]], 'not found'))
+  ready_clean <- ready_clean %>% unlist()
+return(ready_clean)
+}
+```
+
+
+```{r}
+## La funcion retorna los indices en los cuales encontro el match, sin embargo, esta es una columna expandida de la data frame por lo que hay que volver a contraerla o expandir la data frame. Para esto debemos contar la cantidad de codigos que tiene por indice la columna SS 
+test <-spliter(ortholog_groups$Salmo_salar_protein_refseq.faa, full_data_frame_rem$refseq_peptide_predicted )
+test2 <-  strsplit(ortholog_groups$Salmo_salar_protein_refseq.faa, ",")%>% unlist()
+test2 <-  gsub("\\.[0-9]","",test2)
+```
+
+
+```{r}
+comp.vector <-  1:length(full_data_frame_rem$refseq_peptide_predicted) %>% purrr::map(function(x) which(full_data_frame_rem$refseq_peptide_predicted[x] ==test2))
+comp.vector.na <- 1:length(full_data_frame_rem$refseq_peptide_predicted) %>% purrr::map(function(x) ifelse(!length(comp.vector[[x]]) == FALSE, comp.vector[[x]], 'not found'))
+comp.vector.na %>% unlist
+```
+
+Ahora tenemos el numero de elementos que existen dentro de cada indice, es decir sabemos cuanto repetir cada valor de la columna ID, para poder hacer el retrive.
+```{r}
+
+counting <- function(lista){
+  freq <- list()
+  for(i in 1:length(lista)){
+    freq<- unlist(append(freq, length(unlist(strsplit(lista[i], ',')))))
+  }
+  return(freq)
+}
+asd <- counting(ortholog_groups$Salmo_salar_protein_refseq.faa)
+```
+expansion de la data frame utilizando funciones, con esto lograremos igualar las dimensiones de las data frames y podremos rescatar los id
+```{r}
+data_frame_expander <- function(dataframe,columna){
+  freq <-counting(columna)
+  new_data_frame<- cbind(dataframe, freq)
+  final_df<- expandRows(new_data_frame, "freq")
+  return(final_df)
+}
+prueba <- data_frame_expander(ortholog_groups, ortholog_groups$Salmo_salar_protein_refseq.faa)
+```
+
+Rescastando los Group ID y utilizando todas las funciones
+```{r}
+golden_retriever <- function(orthologs, metaresult, method_data_frame){
+  indices<- spliter(orthologs, metaresult)
+  indices <- as.numeric(indices)
+  data_frame_to_retrieve<- data_frame_expander(ortholog_groups, ortholog_groups$Salmo_salar_protein_refseq.faa)
+  ID_list <- list()
+  for(i in indices){
+    ID_list<- append(ID_list, data_frame_to_retrieve$group_id[i])
+    ID_list <- unlist(ID_list)
+  }
+  final_meta_result <- cbind(method_data_frame,ID_list)
+  return(final_meta_result)
+
+}
+```
+
+Generando tabla que contiene los ID de los grupos ortologos de copia unica y no
+```{r}
+Final_data_frame_Rem <- golden_retriever(single_copy_groups$Salmo_salar_protein_refseq.faa, full_data_frame_rem$refseq_peptide_predicted, full_data_frame_rem)
+Final_data_frame_Rem2 <-golden_retriever(ortholog_groups$Salmo_salar_protein_refseq.faa, full_data_frame_rem$refseq_peptide_predicted, Final_data_frame_Rem)
+colnames(Final_data_frame_Rem2)[length(colnames(Final_data_frame_Rem2))- 1] <- c("Single_Copy_ID")
+colnames(Final_data_frame_Rem2)[length(colnames(Final_data_frame_Rem2))] <- c("Ortholog_group_ID")
+```
+
+
+```{r}
+Final_data_frame_votecount <- golden_retriever(single_copy_groups$Salmo_salar_protein_refseq.faa, full_data_frame_votecount$refseq_peptide_predicted, full_data_frame_votecount)
+Final_data_frame_votecount2 <- golden_retriever(ortholog_groups$Salmo_salar_protein_refseq.faa, full_data_frame_votecount$refseq_peptide_predicted, Final_data_frame_votecount)
+colnames(Final_data_frame_votecount2)[length(colnames(Final_data_frame_votecount2))- 1] <- c("Single_Copy_ID")
+colnames(Final_data_frame_votecount2)[length(colnames(Final_data_frame_votecount2))] <- c("Ortholog_group_ID")
+```
+
+
+```{r}
+Final_data_frame_combining <- golden_retriever(single_copy_groups$Salmo_salar_protein_refseq.faa, full_data_frame_combining$refseq_peptide_predicted, full_data_frame_combining)
+Final_data_frame_combining2 <- golden_retriever(ortholog_groups$Salmo_salar_protein_refseq.faa, full_data_frame_combining$refseq_peptide_predicted, Final_data_frame_combining)
+colnames(Final_data_frame_combining2)[length(colnames(Final_data_frame_combining2))- 1] <- c("Single_Copy_ID")
+colnames(Final_data_frame_combining2)[length(colnames(Final_data_frame_combining2))] <- c("Ortholog_group_ID")
+
+Siginificativos_Combining <-Final_data_frame_combining2 %>%  filter(metap < 0.01) 
+write.csv()
+```
+Ahora debemos rescatar con el ID en la tabla de ortologia para humano y para zebra fish, para obtener una tabla con los codigos de peptidos para cada organismo, probablemente sea necesario recuperar el entrezid para los analisis funcionales, debo tratar de conseguir resultados de kegg, genn onthology, reactom, es poco probable que los codigos de salmones tengan informacion, por eso los codigos que debo usar son los de Humano y cebra fish. 
+```{r}
+ortholog_groups$group_id
+```
+https://yulab-smu.top/biomedical-knowledge-mining-book/, en esta documentacion estara el workflow para seguir con todos los codigos obtenidos en el meta analisis
+
+```{r}
+ortholog_groups$group_id
+Id_vector<- Siginificativos_Combining$Ortholog_group_ID
+#Extracting just the significatives orthologs for 3 species
+for (i in Id_vector){
+  Homo_sapiens_orthologs_groups<-ortholog_groups$Homo_sapiens_protein_refseq.faa[Id_vector]
+  zebra_fish_orthologs_groups<-ortholog_groups$Danio_rerio_protein_refseq.faa[Id_vector]
+  Salmo_salar_orthologs_groups<-ortholog_groups$Salmo_salar_protein_refseq.faa[Id_vector]
+}
+
+Homo_sapiens_clean_list<- strsplit(Homo_sapiens_orthologs_groups, ",") %>% unlist() %>%  str_replace_all("\\*", "")  %>% lapply(., function(z){ z[!is.na(z) & z != ""]}) %>% unlist()
+Homo_sapiens_clean_list <-  gsub("\\.[0-9]","", Homo_sapiens_clean_list)
+
+Zebra_fish_clean_list<- strsplit(zebra_fish_orthologs_groups, ",") %>%  unlist() %>% str_replace_all("\\*", "")  %>% lapply(., function(z){ z[!is.na(z) & z != ""]}) %>% unlist()
+Zebra_fish_clean_list <-  gsub("\\.[0-9]","", Zebra_fish_clean_list)
+
+Salmo_salar_clean_list<- strsplit(Salmo_salar_orthologs_groups, ",") %>%  unlist() %>% str_replace_all("\\*", "")  %>% lapply(., function(z){ z[!is.na(z) & z != ""]}) %>% unlist()
+Salmo_salar_clean_list <-  gsub("\\.[0-9]","", Salmo_salar_clean_list)
+```
+Usando biomart para recuperar los entrezid, para HS, DR and Salmo Salar
+```{r}
+library(biomaRt)
+listMarts()
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL")
+searchDatasets(mart = ensembl, pattern = "sapiens")
+searchDatasets(mart = ensembl, pattern = "Zebra")
+searchDatasets(mart = ensembl, pattern = "salar")
+HS.ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
+DR.ensembl = useMart("ensembl",dataset="drerio_gene_ensembl")
+SS.ensembl = useMart("ensembl",dataset="ssalar_gene_ensembl")
+
+listAttributes(HS.ensembl)
+searchAttributes(mart = HS.ensembl, pattern = 'name')
+searchAttributes(mart = DR.ensembl, pattern = 'symbol')
+searchAttributes(mart = SS.ensembl, pattern = 'symbol')
+
+Orthologs_for_functional_HS = getBM(attributes=c('entrezgene_id','ensembl_gene_id','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Homo_sapiens_clean_list, mart = HS.ensembl)
+
+Orthologs_for_functional_ZF = getBM(attributes=c('entrezgene_id','ensembl_gene_id','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Zebra_fish_clean_list , mart = DR.ensembl)
+
+Orthologs_for_functional_SS = getBM(attributes=c('entrezgene_id','ensembl_gene_id','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Salmo_salar_clean_list , mart = SS.ensembl)
+
+
 ```
 
 ```{r}
-searchAttributes(mart = Ss.ensembl, pattern = 'refseq')
-searchAttributes(mart = Ss.ensembl, pattern = 'protein_id')
+
+
+Orthologs_for_Drugs_HS = getBM(attributes=c('external_gene_name', 'entrezgene_id'),filters ='refseq_peptide_predicted',values =Homo_sapiens_clean_list, mart = HS.ensembl)
+
+Orthologs_for_Drugs_HS_to_entrez = getBM(attributes=c('hgnc_symbol','uniprot_gn_id'),filters ='refseq_mrna_predicted',values =Orthologs_for_Drugs_HS$refseq_mrna_predicted , mart = HS.ensembl)
+
+
+Orthologs_for_Drugs_SS = getBM(attributes=c('hgnc_symbol','ensembl_gene_id','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Salmo_salar_clean_list, mart = SS.ensembl)
+Orthologs_for_Drugs_Dr = getBM(attributes=c('ensembl_gene_id','refseq_peptide_predicted'),filters ='refseq_peptide_predicted',values = Zebra_fish_clean_list, mart = DR.ensembl)
+
+genes.hgnc_HS <- clusterProfiler::bitr(Homo_sapiens_clean_list, fromType = "refseq_peptide_predicted", toType = c("ENSEMBL", "SYMBOL"), OrgDb = "org.Hs.eg.db")
+keymethod
+write_tsv(as.data.frame(Homo_sapiens_clean_list), file ="/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/peptides.tsv")
 ```
 
+Searching Drugs.
 ```{r}
-mRNA_vector <- c("XM_014144436","XM_014168710","XM_014136366","XM_014155454", "XM_014155454","XM_014131411","XM_014146182","XM_014144014","XM_014159954")
-getBM(attributes=c('refseq_peptide','refseq_mrna_predicted'),filters ='refseq_mrna_predicted',values =mRNA_vector , mart = Ss.ensembl)
+library(rDGIdb)
+interactions <- read_tsv(file = "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/interactions.tsv")
+drugs <- inner_join(interactions,Orthologs_for_Drugs_HS, by = c("entrez_id" = "entrezgene_id") )
+write_tsv(drugs, file= "/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/firstcandidate.tsv" ) 
 
+
+test<-write.table(matrix(as.character(Orthologs_for_Drugs_HS_to_entrez$hgnc_symbol),nrow=1), sep=",",
+              row.names=FALSE, col.names=FALSE) 
+gen <- c("DCAF6","DCAF6","CXCR2","CXCR2","CXCR2","CXCR2","CXCR2","CXCR2","CPOX","CPOX","TACC3","TACC3","TACC3","TACC3","TACC3","SERPINB9","SERPINB9","CDKN2A","CDKN2A","CDKN2A","CDKN2A","CDKN2A","CDKN2A","ATP2A2","ATP2A2","ATP2A2","ATP2A2","ATP2A2","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","PKM","MLKL","MLKL","MLKL","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","GRN","TOMM40","TOMM40","TOMM40","CHMP2A","CHMP2A","CHMP2A","CHMP2A","MSN","MSN","MSN","REG3G","LAMB2","LAMB2","OXSR1","OXSR1","OXSR1","LCP1","LCP1","LCP1","LCP1","CEP170B","GBP3","GBP3","GBP3","GBP3","GBP3","GBP3","GBP3","FCER2","FCER2","FCER2","STMN4","STMN4","STMN4","MACROD1","P2RY8","P2RY8","CHIA","CHIA","CHIA","CHIA","TGFBR3","TGFBR3","TGFBR3","TGFBR3","TGFBR3","RBM5","RBM5","RBM5","RBM5","RBM5","RBM5","RBM5","RBM5","RBM5","COL10A1","COL10A1","COL10A1","COL10A1","VDAC3","VDAC3","VDAC3","VDAC3","VDAC3","VDAC3","VDAC3","SPTAN1","SPTAN1","SPTAN1","SPTAN1","SPTAN1","SPTAN1","SPTAN1","GFI1B","GFI1B","GFI1B","GPR18","METTL3","METTL3","METTL3","METTL3","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","PSTPIP1","DYNLRB2","DYNLRB2","DYNLRB2","DYNLRB2","DYNLRB2","DYNLRB2","MR1","PFDN2","PFDN2","PDIA6","DDAH2","DDAH2","DDAH2","DDAH2","HLA-F","HLA-F","HLA-F","HLA-F","KIFC1","KIFC1","KIFC1","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","SERPINB6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","BAG6","SLC2A6","SLC2A6","SLC2A6","ALAD","ALAD","ALAD","LCN15","TUBGCP4","TUBGCP4","TUBGCP4","TUBGCP4","TUBGCP4","TUBGCP4","KRT15","KRT15","KRT15","KRT15","KRT15","ACOX1","ACOX1","ACOX1","ACOX1","LDLR","LDLR","LDLR","ARFRP1","TGM2","TGM2","TGM2","TGM2","CITED1","CITED1","CITED1","CITED1","CITED1","TMLHE","HADHB","HADHB","HADHB","HADHB","HADHB","HADHB","EIF2AK2","EIF2AK2","EIF2AK2","SPAST","SPAST","SPAST","SPAST","SPAST","SPAST","ALAS1","ALAS1","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","PRKCH","DDX21","GBP6","TXNIP","GNB1","GNB1","GNB1","GNB1","GNB1","GNB1","RBM45","LYG2","LYG2","LYG2","INPP5D","INPP5D","INPP5D","CD74","CD74","CD74","CD74","HLA-E","HLA-E","HLA-G","HLA-G","HLA-G","HLA-G","HLA-G","EPHX2","EPHX2","EPHX2","EPHX2","PLIN2","PLIN2","PLIN2","PLIN2","PLIN2","SH2D4B","PPP2R1B","PPP2R1B","PPP2R1B","PPP2R1B","BANF1","BANF1","BANF1","ATP5MC2","EIF2S2","EIF2S2","OTC","OTC","GBP1","UBQLN4","ATG101","ATG101","ATG101","ATG101","ATG101","FHL3" )
+genes <- Homo_sapiens_clean_list %>% unique()
+result <- queryDGIdb(gen)
+resultSummary(result)
+plotInteractionsBySource(result)
 ```
+
+
+
+
+
+
 

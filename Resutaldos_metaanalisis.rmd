@@ -1,0 +1,12 @@
+---
+title: "Ortholog annotation"
+output: html_notebook
+---
+
+
+```{r}
+meta_combining <- readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/meta1.rds")
+meta_votecount<-readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/meta2.rds")
+meta_rem<-readRDS("/home/alejandro/Documentos/Meta_analisis_teleosteos/Meta_analisis/meta3.rds")
+
+```
